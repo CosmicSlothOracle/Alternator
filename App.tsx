@@ -1097,6 +1097,8 @@ const QuestExecutionView: React.FC<{
   onCancel: () => void 
 }> = ({ unit, config, onTaskSuccess, onComplete, onCancel }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [bountyTask, setBountyTask] = useState<Task | null>(null);
+  const [isBountyRound, setIsBountyRound] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
@@ -1109,19 +1111,16 @@ const QuestExecutionView: React.FC<{
 
   useEffect(() => {
     let t = TaskFactory.generateTasks(unit.id, 5);
-    if (config.timed && config.noCheatSheet) {
-        t.push(TaskFactory.generateBountyTask(unit.id));
-    }
     setTasks(t);
   }, [unit.id, config]);
 
   useEffect(() => {
-    if (config.timed && !feedback && tasks.length > 0) {
+    if (config.timed && !feedback && (tasks.length > 0 || bountyTask)) {
         const timer = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
                     setFeedback('wrong');
-                    setMistakes(m => m + 1);
+                    if(!isBountyRound) setMistakes(m => m + 1);
                     return 0;
                 }
                 return prev - 1;
@@ -1129,10 +1128,11 @@ const QuestExecutionView: React.FC<{
         }, 1000);
         return () => clearInterval(timer);
     }
-  }, [config.timed, feedback, currentIdx, tasks.length]);
+  }, [config.timed, feedback, currentIdx, tasks.length, bountyTask, isBountyRound]);
 
   const handleVerify = () => {
-      const task = tasks[currentIdx];
+      const task = isBountyRound ? bountyTask : tasks[currentIdx];
+      if (!task) return;
       let isCorrect = false;
 
       if (task.type === 'choice' || task.type === 'wager') {
@@ -1145,17 +1145,26 @@ const QuestExecutionView: React.FC<{
 
       if (isCorrect) {
           setFeedback('correct');
-          let earned = 10;
-          if (task.type === 'wager' && wager > 0) earned += wager;
-          onTaskSuccess(earned);
+          if (!isBountyRound) {
+            let earned = 10;
+            if (task.type === 'wager' && wager > 0) earned += wager;
+            onTaskSuccess(earned);
+          }
       } else {
           setFeedback('wrong');
-          setMistakes(m => m + 1);
-          if (task.type === 'wager' && wager > 0) onTaskSuccess(-wager);
+          if (!isBountyRound) {
+            setMistakes(m => m + 1);
+            if (task.type === 'wager' && wager > 0) onTaskSuccess(-wager);
+          }
       }
   };
 
   const handleNext = () => {
+      if (isBountyRound) {
+        onComplete(feedback === 'correct');
+        return;
+      }
+
       if (currentIdx < tasks.length - 1) {
           setCurrentIdx(p => p + 1);
           setFeedback(null);
@@ -1165,13 +1174,23 @@ const QuestExecutionView: React.FC<{
           setWager(0);
           setTimeLeft(60);
       } else {
-          const isPerfect = mistakes === 0;
-          onComplete(isPerfect);
+          if (mistakes === 0) {
+            const finalTask = TaskFactory.generateBountyTask(unit.id);
+            setBountyTask(finalTask);
+            setIsBountyRound(true);
+            setFeedback(null);
+            setSelectedOption(null);
+            setTextInput('');
+            setHint(null);
+            setTimeLeft(60);
+          } else {
+            onComplete(false);
+          }
       }
   };
 
   const requestHint = async () => {
-      if (config.noCheatSheet) return;
+      if (config.noCheatSheet || !tasks[currentIdx]) return;
       setLoadingHint(true);
       const h = await getMatheHint(unit.title, tasks[currentIdx].question);
       setHint(h);
@@ -1181,31 +1200,41 @@ const QuestExecutionView: React.FC<{
 
   if (tasks.length === 0) return <div className="p-10 text-center">Lade Mission...</div>;
 
-  const task = tasks[currentIdx];
+  const task = isBountyRound ? bountyTask : tasks[currentIdx];
+  if (!task) return <div className="p-10 text-center">Fehler...</div>;
+
 
   return (
-    <div className="fixed inset-0 z-[120] bg-white flex flex-col">
+    <div className={`fixed inset-0 z-[120] flex flex-col ${isBountyRound ? 'bounty-mode' : 'bg-white'}`}>
        {/* Header */}
-       <div className="p-4 border-b flex items-center justify-between bg-slate-50">
+       <div className={`p-4 border-b flex items-center justify-between ${isBountyRound ? 'bounty-header' : 'bg-slate-50'}`}>
            <Button variant="ghost" onClick={onCancel}>Abbruch</Button>
            <div className="flex flex-col items-center">
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{unit.title}</span>
-               <div className="flex gap-1">
-                 {Array.from({length: tasks.length}).map((_, i) => (
-                    <div key={i} className={`h-1.5 w-6 rounded-full ${i < currentIdx ? 'bg-emerald-400' : i === currentIdx ? 'bg-indigo-500' : 'bg-slate-200'}`} />
-                 ))}
-               </div>
+               <span className={`text-[10px] font-black uppercase tracking-widest ${isBountyRound ? 'bounty-header-title' : 'text-slate-400'}`}>{unit.title}</span>
+                {!isBountyRound && (
+                    <div className="flex gap-1">
+                    {Array.from({length: tasks.length}).map((_, i) => (
+                        <div key={i} className={`h-1.5 w-6 rounded-full ${i < currentIdx ? 'bg-emerald-400' : i === currentIdx ? 'bg-indigo-500' : 'bg-slate-200'}`} />
+                    ))}
+                    </div>
+                )}
            </div>
-           <div className={`font-mono font-bold ${timeLeft < 10 ? 'text-rose-500 animate-pulse' : 'text-slate-400'}`}>
+           <div className={`font-mono font-bold ${timeLeft < 10 ? 'text-rose-500 animate-pulse' : (isBountyRound ? 'text-amber-400' : 'text-slate-400')}`}>
               {config.timed ? `${timeLeft}s` : '∞'}
            </div>
        </div>
 
        {/* Content */}
        <div className="flex-1 overflow-y-auto p-6 max-w-2xl mx-auto w-full flex flex-col">
+            {isBountyRound && (
+                <div className="text-center mb-6 animate-in fade-in">
+                    <h2 className="text-3xl font-black text-amber-400 uppercase tracking-widest animate-pulse">🏆 Bounty-Frage 🏆</h2>
+                    <p className="text-amber-200 italic mt-1">Die finale Herausforderung für die volle Belohnung!</p>
+                </div>
+            )}
            {/* Question Card */}
            <div className="mb-8">
-               <h3 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight mb-4">{task.question}</h3>
+               <h3 className="text-xl sm:text-2xl font-bold leading-tight mb-4">{task.question}</h3>
                {task.type === 'visualChoice' && task.visualData && (
                   <div className="grid grid-cols-3 gap-2 mb-6">
                       {task.visualData.map((v: any) => (
@@ -1247,7 +1276,7 @@ const QuestExecutionView: React.FC<{
                            <button 
                              key={i}
                              onClick={() => !feedback && setSelectedOption(i)}
-                             className={`p-4 rounded-xl border-2 text-left font-bold transition-all ${selectedOption === i ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-100 bg-white text-slate-600 hover:border-indigo-100'}`}
+                             className={`p-4 rounded-xl border-2 text-left font-bold transition-all ${isBountyRound ? (selectedOption === i ? 'bounty-option-selected' : 'bounty-option') : (selectedOption === i ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-100 bg-white text-slate-600 hover:border-indigo-100')}`}
                            >
                                {opt}
                            </button>
@@ -1261,14 +1290,14 @@ const QuestExecutionView: React.FC<{
                          onChange={(e) => setTextInput(e.target.value)}
                          placeholder={task.placeholder || "Antwort..."}
                          disabled={!!feedback}
-                         className="w-full p-4 text-lg font-bold rounded-xl border-2 border-slate-200 outline-none focus:border-indigo-500"
+                         className={`w-full p-4 text-lg font-bold rounded-xl border-2 outline-none ${isBountyRound ? 'bounty-input' : 'border-slate-200 focus:border-indigo-500'}`}
                        />
                    </div>
                ) : null}
            </div>
 
            {/* Hint Section */}
-           {!config.noCheatSheet && !feedback && (
+           {!config.noCheatSheet && !feedback && !isBountyRound && (
                <div className="mb-8">
                    {hint ? (
                        <div className="bg-indigo-50 p-4 rounded-xl text-sm text-indigo-800 italic border border-indigo-100">
@@ -1287,19 +1316,19 @@ const QuestExecutionView: React.FC<{
            )}
 
            {/* Footer Action */}
-           <div className="mt-auto pt-6 border-t">
+           <div className="mt-auto pt-6 border-t" style={{ borderColor: isBountyRound ? '#422006' : '' }}>
                {!feedback ? (
-                   <Button onClick={handleVerify} disabled={selectedOption === null && !textInput} className="w-full" size="lg">
+                   <Button onClick={handleVerify} disabled={selectedOption === null && !textInput} className={`w-full ${isBountyRound ? 'bounty-button' : ''}`} size="lg">
                        Überprüfen
                    </Button>
                ) : (
-                   <div className={`rounded-2xl p-6 mb-4 ${feedback === 'correct' ? 'bg-emerald-50 border border-emerald-100' : 'bg-rose-50 border border-rose-100'}`}>
-                       <div className={`text-xl font-black uppercase italic mb-2 ${feedback === 'correct' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                   <div className={`rounded-2xl p-6 mb-4 ${feedback === 'correct' ? (isBountyRound ? 'bg-amber-500/10 border border-amber-500' : 'bg-emerald-50 border border-emerald-100') : (isBountyRound ? 'bg-rose-500/10 border border-rose-500' : 'bg-rose-50 border border-rose-100')}`}>
+                       <div className={`text-xl font-black uppercase italic mb-2 ${feedback === 'correct' ? (isBountyRound ? 'text-amber-300' : 'text-emerald-600') : (isBountyRound ? 'text-rose-400' : 'text-rose-600')}`}>
                            {feedback === 'correct' ? 'Richtig! 🎉' : 'Leider falsch 💀'}
                        </div>
-                       <p className="text-slate-700 mb-6 font-medium">{task.explanation}</p>
-                       <Button onClick={handleNext} variant={feedback === 'correct' ? 'success' : 'secondary'} className="w-full">
-                           {currentIdx < tasks.length - 1 ? 'Weiter' : 'Abschließen'}
+                       <p className={`mb-6 font-medium ${isBountyRound ? 'text-amber-100/80' : 'text-slate-700'}`}>{task.explanation}</p>
+                       <Button onClick={handleNext} variant={feedback === 'correct' ? 'success' : 'secondary'} className={`w-full ${feedback === 'correct' && isBountyRound ? 'bounty-button' : ''}`}>
+                           Abschließen
                        </Button>
                    </div>
                )}

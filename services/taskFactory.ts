@@ -87,64 +87,63 @@ export const TaskFactory = {
     const id = `bounty-${unitId}-${seed}`;
     
     switch (unitId) {
-      case 'u1': // Haus der Vierecke
+      case 'u1': // Segment 1: Figuren verstehen
         return {
           id, type: 'choice',
-          question: "BOUNTY FRAGE: Welche Aussage ist mathematisch präzise?",
+          question: "Aussage: 'Jedes Rechteck ist ein Quadrat.' Entscheide und begründe.",
           options: [
-            "Jedes Rechteck ist ein Quadrat.",
-            "Ein Drachenviereck hat immer 4 rechte Winkel.",
-            "Jedes Quadrat ist eine Raute und ein Rechteck zugleich.",
-            "Ein Trapez hat niemals rechte Winkel."
+            "Stimmt, weil beide 4 Ecken haben.",
+            "Stimmt nicht, weil bei einem Quadrat alle Seiten gleich lang sein müssen.",
+            "Stimmt, weil Quadrate spezielle Rechtecke sind.",
+            "Stimmt nicht, weil Rechtecke länglicher sind."
           ],
-          correctAnswer: 2,
-          explanation: "Das Quadrat ist die 'perfekte' Form: Es erfüllt die Definition der Raute (4 gleiche Seiten) UND des Rechtecks (4 rechte Winkel)."
+          correctAnswer: 1,
+          explanation: "Ein Quadrat ist zwar ein spezielles Rechteck, aber die Aussage 'JEDES Rechteck ist ein Quadrat' ist falsch. Ein Rechteck mit den Seiten 4cm und 6cm ist kein Quadrat."
         };
       
-      case 'u2': // Winkel & Thales
+      case 'u2': // Segment 2: Winkel
         return {
           id, type: 'input',
-          question: "BOUNTY FRAGE: In einem rechtwinkligen Dreieck ist Winkel Alpha = 35°. Wie groß ist Winkel Beta, wenn Gamma der rechte Winkel (90°) ist?",
-          correctAnswer: "55",
+          question: "Ein Dreieck hat die Winkel 47° und 63°. Berechne den dritten Winkel.",
+          correctAnswer: "70",
           placeholder: "Grad",
-          explanation: "Winkelsumme im Dreieck ist 180°. 180° - 90° - 35° = 55°."
+          explanation: "Die Innenwinkelsumme im Dreieck beträgt immer 180°. Also: 180° - 47° - 63° = 70°."
         };
 
-      case 'u3': // Flächen
-        const a = getRandomInt(5, 9);
+      case 'u3': // Segment 3: Flächen und Terme
         return {
           id, type: 'input',
-          question: `BOUNTY FRAGE: Ein Rechteck hat den Flächeninhalt A = ${a*8} cm². Die Seite a ist ${a} cm lang. Wie lang ist Seite b?`,
-          correctAnswer: "8",
-          placeholder: "cm",
-          explanation: "Formel A = a * b. Umgestellt nach b: b = A / a."
+          question: "Ein Rechteck hat die Seitenlängen (x+2) und (x-1). Berechne die Fläche für x=6.",
+          correctAnswer: "40",
+          placeholder: "Flächeneinheiten",
+          explanation: "Für x=6 sind die Seitenlängen (6+2)=8 und (6-1)=5. Die Fläche ist A = 8 * 5 = 40."
         };
 
-      case 'u4': // Volumen
+      case 'u4': // Segment 4: Körper und Oberflächen
         return {
           id, type: 'input',
-          question: "BOUNTY FRAGE: Ein Würfel hat eine Kantenlänge von 4 cm. Berechne das Volumen.",
-          correctAnswer: "64",
+          question: "Ein Quader hat die Maße 8cm × 5cm × 4cm. Berechne das Volumen.",
+          correctAnswer: "160",
           placeholder: "cm³",
-          explanation: "V = a * a * a = 4 * 4 * 4 = 64."
+          explanation: "Das Volumen eines Quaders ist Länge × Breite × Höhe. Also: 8 * 5 * 4 = 160 cm³."
         };
 
-      case 'u5': // Ähnlichkeit / Maßstab (Classical Ratio)
+      case 'u5': // Segment 5: Ähnlichkeit
         return {
           id, type: 'input',
-          question: "BOUNTY FRAGE: Eine Landkarte hat den Maßstab 1:25.000. Du misst eine Strecke von 4 cm auf der Karte. Wie viele KILOMETER sind das in der Realität?",
-          correctAnswer: "1",
-          placeholder: "km",
-          explanation: "4 cm * 25.000 = 100.000 cm. 100.000 cm = 1.000 m = 1 km."
-        };
-
-      case 'u6': // Context / Pythagoras
-        return {
-          id, type: 'input',
-          question: "BOUNTY FRAGE: Ein rechtwinkliges Dreieck hat die Katheten a=6cm und b=8cm. Berechne die Hypotenuse c.",
-          correctAnswer: "10",
+          question: "Ein Modellauto im Maßstab 1:20 ist einem echten Auto von 4,2 m Länge nachempfunden. Wie lang ist das Modell in cm?",
+          correctAnswer: "21",
           placeholder: "cm",
-          explanation: "Satz des Pythagoras: a² + b² = c². 36 + 64 = 100. Wurzel aus 100 ist 10."
+          explanation: "4,2 Meter sind 420 cm. Die Modelllänge ist 420 cm / 20 = 21 cm."
+        };
+
+      case 'u6': // Segment 5: Alltagsgeometrie
+        return {
+          id, type: 'input',
+          question: "Ein 1,80 m großer Mensch wirft einen 2,4 m langen Schatten. Zur gleichen Zeit wirft ein Turm einen 12 m langen Schatten. Wie hoch ist der Turm?",
+          correctAnswer: "9",
+          placeholder: "Meter",
+          explanation: "Mit dem Strahlensatz: (Turmhöhe / Turmschatten) = (Menschgröße / Menschenschatten). h / 12 = 1.8 / 2.4  =>  h = (1.8 / 2.4) * 12 = 9 Meter."
         };
 
       default:

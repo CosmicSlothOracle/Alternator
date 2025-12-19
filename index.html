@@ -38,6 +38,57 @@
       @media (max-width: 640px) {
         h1 { line-height: 0.9 !important; }
       }
+
+      /* --- BOUNTY MODE STYLES --- */
+      @keyframes pulse-gold {
+        0%, 100% {
+          box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), 0 0 0 0 rgba(251, 191, 36, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 30px rgba(251, 191, 36, 0.8), 0 0 0 8px rgba(251, 191, 36, 0);
+        }
+      }
+
+      .bounty-mode {
+        background: radial-gradient(ellipse at bottom, #2d2a1b 0%, #0d0c09 100%);
+        color: #f0e6d2;
+      }
+      .bounty-mode h3 {
+        color: #fde68a; /* amber-200 */
+        text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+      }
+      .bounty-mode .bounty-header {
+         background: linear-gradient(180deg, rgba(39, 36, 22, 0.5) 0%, rgba(39, 36, 22, 0) 100%);
+         border-bottom: 1px solid #422006;
+      }
+      .bounty-mode .bounty-header-title {
+        color: #fef3c7; /* amber-100 */
+      }
+      .bounty-mode .bounty-button {
+        background-color: #fbbF24; /* amber-400 */
+        color: #422006; /* amber-900 */
+        border-color: #b45309; /* amber-700 */
+        animation: pulse-gold 2s infinite;
+      }
+      .bounty-mode .bounty-input {
+        background-color: #1c1917; /* warm-gray-900 */
+        border-color: #ca8a04; /* amber-600 */
+        color: #fde047; /* yellow-300 */
+      }
+      .bounty-mode .bounty-option {
+         background-color: rgba(253, 230, 138, 0.1);
+         border-color: #ca8a04;
+         color: #fef3c7;
+      }
+      .bounty-mode .bounty-option:hover {
+         background-color: rgba(253, 230, 138, 0.2);
+         border-color: #fbbF24;
+      }
+      .bounty-mode .bounty-option-selected {
+        background-color: #fde047;
+        border-color: #fbbF24;
+        color: #422006;
+      }
     </style>
   <script type="importmap">
 {
