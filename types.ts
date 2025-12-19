@@ -4,23 +4,17 @@ export type CategoryGroup = 'A' | 'B' | 'C';
 export interface Task {
   id: string;
   question: string;
-  type: 'choice' | 'input' | 'boolean' | 'shorttext' | 'visualChoice' | 'wager';
+  type: 'choice' | 'input' | 'boolean' | 'shorttext' | 'visualChoice';
   options?: string[];
   correctAnswer: number | string;
   explanation: string;
   placeholder?: string;
   visualData?: any; 
-  wagerOptions?: number[]; // For wager tasks
-}
-
-export interface TermDefinition {
-  term: string;
-  definition: string;
-  visual?: string; // SVG path or instruction
 }
 
 export interface LearningUnit {
   id: string;
+  segment: number;
   group: CategoryGroup;
   category: 'Basics' | 'Konstruktion' | 'Berechnung' | 'Transformation' | 'Koordinaten' | 'Modellierung';
   title: string;
@@ -29,29 +23,17 @@ export interface LearningUnit {
   examples: string[];
   tasks: Task[]; 
   difficulty: 'Einfach' | 'Mittel' | 'Schwer';
-  coinsReward: number; // Standard Reward für Abschluss (immer)
-  bounty: number;      // Extra Reward für Perfect Run (100-500)
+  coinsReward: number;
   definitionId?: string;
   keywords: string[];
-}
-
-export interface GeometryDefinition {
-  id: string;
-  groupId: CategoryGroup;
-  title: string;
-  description: string;
-  formula: string;
-  terms: TermDefinition[];
-  visual: string;
 }
 
 export interface ShopItem {
   id: string;
   name: string;
-  type: 'avatar' | 'effect' | 'feature' | 'voucher' | 'calculator';
+  type: 'avatar' | 'effect' | 'feature';
   cost: number;
   value: string;
-  icon?: string; // New: Display symbol separate from logic value
   description: string;
   rarity?: 'common' | 'rare' | 'epic' | 'legendary';
 }
@@ -63,10 +45,8 @@ export interface User {
   coins: number;
   totalEarned: number;
   completedUnits: string[];
-  masteredUnits: string[]; // NEU: Für Units, die mit Bounty (perfekt) abgeschlossen wurden
   unlockedItems: string[]; 
   activeEffects: string[]; 
-  calculatorSkin: string; // The active calculator design
   xp: number;
 }
 
@@ -102,12 +82,4 @@ export interface LogEntry {
   action: string;
   details: string;
   userId: string;
-}
-
-export type ToastType = 'success' | 'error' | 'info';
-
-export interface ToastMessage {
-  id: string;
-  type: ToastType;
-  message: string;
 }

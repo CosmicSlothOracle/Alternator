@@ -29,27 +29,13 @@ export const AuthService = {
         coins: 250,
         totalEarned: 250,
         completedUnits: [],
-        masteredUnits: [], // Initialisierung
-        unlockedItems: ['av_1', 'calc_default'], // Default calculator skin
+        unlockedItems: ['av_1'],
         activeEffects: [],
-        calculatorSkin: 'default', // Default skin
         xp: 0
       };
       users.push(user);
       db.set('mm_users', users);
     }
-    // Migration für bestehende User ohne masteredUnits
-    if (!user.masteredUnits) {
-        user.masteredUnits = [];
-    }
-    // Migration für calculatorSkin
-    if (!user.calculatorSkin) {
-        user.calculatorSkin = 'default';
-        if (user.unlockedItems && !user.unlockedItems.includes('calc_default')) {
-            user.unlockedItems.push('calc_default');
-        }
-    }
-    
     db.set('mm_current_user', user);
     return user;
   },
@@ -75,9 +61,9 @@ export const SocialService = {
   async getLeaderboard(): Promise<User[]> {
     let users = db.get('mm_users') || [];
     const bots: User[] = [
-      { id: 'bot1', username: 'Lukas_9b', xp: 450, avatar: '🦉', coins: 1000, totalEarned: 2000, completedUnits: [], masteredUnits: [], unlockedItems: [], activeEffects: [], calculatorSkin: 'default' },
-      { id: 'bot2', username: 'Sarah.Math', xp: 820, avatar: '🥷', coins: 1500, totalEarned: 3000, completedUnits: [], masteredUnits: [], unlockedItems: [], activeEffects: [], calculatorSkin: 'neon' },
-      { id: 'bot3', username: 'MathePro_X', xp: 1250, avatar: '💎', coins: 5000, totalEarned: 10000, completedUnits: [], masteredUnits: [], unlockedItems: [], activeEffects: [], calculatorSkin: 'chaos' }
+      { id: 'bot1', username: 'Lukas_9b', xp: 450, avatar: '🦉', coins: 1000, totalEarned: 2000, completedUnits: [], unlockedItems: [], activeEffects: [] },
+      { id: 'bot2', username: 'Sarah.Math', xp: 820, avatar: '🥷', coins: 1500, totalEarned: 3000, completedUnits: [], unlockedItems: [], activeEffects: [] },
+      { id: 'bot3', username: 'MathePro_X', xp: 1250, avatar: '💎', coins: 5000, totalEarned: 10000, completedUnits: [], unlockedItems: [], activeEffects: [] }
     ];
     const all = [...users, ...bots];
     return all.sort((a, b) => b.xp - a.xp);
