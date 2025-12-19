@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LEARNING_UNITS, SHOP_ITEMS, PROGRESS_LEVELS, GEOMETRY_DEFINITIONS } from './constants';
 import { LearningUnit, User, Task, ShopItem, ChatMessage, CategoryGroup, BattleRequest, ToastMessage, ToastType } from './types';
@@ -618,8 +619,6 @@ const GalaxyMode: React.FC = () => {
     // --- CONFIG ---
     const STAR_COUNT = 300;
     const NEBULA_COUNT = 3;
-    const LENS_RADIUS = 200;
-    const LENS_FORCE = 15; // Pixels of max distortion
 
     // --- TYPES ---
     interface Star {
@@ -660,114 +659,57 @@ const GalaxyMode: React.FC = () => {
     const nebulaColors = [
         'rgba(30, 27, 75, 0.4)', // Dark Indigo
         'rgba(49, 46, 129, 0.3)', // Indigo
-        'rgba(88, 28, 135, 0.2)', // Purple
-        'rgba(15, 23, 42, 0.5)'   // Slate
+        'rgba(88, 28, 135, 0.2)'  // Purple
     ];
-    
+
     for(let i=0; i<NEBULA_COUNT; i++) {
         nebulae.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            radius: Math.min(canvas.width, canvas.height) * (0.4 + Math.random() * 0.3),
+            radius: 200 + Math.random() * 300,
             color: nebulaColors[i % nebulaColors.length],
-            vx: (Math.random() - 0.5) * 0.05, // Very slow
-            vy: (Math.random() - 0.5) * 0.05
+            vx: (Math.random() - 0.5) * 0.2,
+            vy: (Math.random() - 0.5) * 0.2
         });
     }
 
-    let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
-    let targetMouse = { x: canvas.width / 2, y: canvas.height / 2 };
+    const draw = () => {
+        ctx.fillStyle = '#020617'; // Slate 950
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const handleMouseMove = (e: MouseEvent) => {
-        targetMouse.x = e.clientX;
-        targetMouse.y = e.clientY;
+        // Draw Nebulae
+        nebulae.forEach(n => {
+            n.x += n.vx;
+            n.y += n.vy;
+            if (n.x < -n.radius) n.x = canvas.width + n.radius;
+            if (n.x > canvas.width + n.radius) n.x = -n.radius;
+            if (n.y < -n.radius) n.y = canvas.height + n.radius;
+            if (n.y > canvas.height + n.radius) n.y = -n.radius;
+
+            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius);
+            g.addColorStop(0, n.color);
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Draw Stars
+        stars.forEach(s => {
+            ctx.fillStyle = s.baseColor;
+            ctx.globalAlpha = s.alpha * (0.5 + Math.sin(Date.now() * 0.001 * s.z) * 0.5);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        });
+
+        requestAnimationFrame(draw);
     };
     
-    const handleTouchMove = (e: TouchEvent) => {
-        targetMouse.x = e.touches[0].clientX;
-        targetMouse.y = e.touches[0].clientY;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('touchmove', handleTouchMove);
-
-    const draw = () => {
-      // Cosmic inertia
-      mouse.x += (targetMouse.x - mouse.x) * 0.03;
-      mouse.y += (targetMouse.y - mouse.y) * 0.03;
-
-      // Parallax camera offset (stars move opposite to mouse)
-      const camX = (mouse.x - canvas.width / 2) * 0.05;
-      const camY = (mouse.y - canvas.height / 2) * 0.05;
-
-      // 1. Background
-      ctx.fillStyle = '#020617'; // Slate 950/Black
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // 2. Nebulae (Deep depth)
-      nebulae.forEach(n => {
-          n.x += n.vx;
-          n.y += n.vy;
-          
-          // Parallax for nebula (very slight)
-          const drawX = n.x - camX * 0.1;
-          const drawY = n.y - camY * 0.1;
-
-          const g = ctx.createRadialGradient(drawX, drawY, 0, drawX, drawY, n.radius);
-          g.addColorStop(0, n.color);
-          g.addColorStop(1, 'transparent');
-          
-          ctx.fillStyle = g;
-          ctx.beginPath();
-          ctx.arc(drawX, drawY, n.radius, 0, Math.PI * 2);
-          ctx.fill();
-      });
-
-      // 3. Stars
-      stars.forEach(s => {
-          // Parallax: closer stars (higher z) move more
-          let sx = s.x - camX * s.z * 10;
-          let sy = s.y - camY * s.z * 10;
-
-          // Infinite scrolling wrap
-          sx = (sx % canvas.width + canvas.width) % canvas.width;
-          sy = (sy % canvas.height + canvas.height) % canvas.height;
-
-          // Lensing (Distortion)
-          const dx = sx - mouse.x;
-          const dy = sy - mouse.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          
-          let lx = sx;
-          let ly = sy;
-
-          if (dist < LENS_RADIUS) {
-              // Push stars slightly away to create a "bubble" or "lens" effect
-              // Or pull them in. "Gravitational lensing" often bends light around a mass.
-              // Let's do a simple "magnify" distortion: push away from center.
-              const force = (1 - dist / LENS_RADIUS) * LENS_FORCE;
-              const angle = Math.atan2(dy, dx);
-              lx += Math.cos(angle) * force;
-              ly += Math.sin(angle) * force;
-          }
-
-          ctx.fillStyle = s.baseColor;
-          ctx.globalAlpha = s.alpha * (0.8 + 0.2 * Math.random()); // Subtle twinkle
-          ctx.beginPath();
-          ctx.arc(lx, ly, s.size, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1.0;
-      });
-
-      requestAnimationFrame(draw);
-    };
-
     const anim = requestAnimationFrame(draw);
-    return () => {
-        cancelAnimationFrame(anim);
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('touchmove', handleTouchMove);
-    };
+    return () => cancelAnimationFrame(anim);
   }, [size]);
 
   return (
@@ -788,538 +730,47 @@ const FireBlaze: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Fix: Fallback to window dimensions if size is 0
     canvas.width = size.width || window.innerWidth;
     canvas.height = size.height || window.innerHeight;
 
-    interface Particle {
-      x: number; y: number; vx: number; vy: number;
-      life: number; decay: number; size: number;
-      type: 'ember' | 'flame';
-      turbulence: number;
-    }
-
-    let particles: Particle[] = [];
-    let mouse = { x: canvas.width / 2, y: canvas.height + 100 };
-    let lastMouse = { ...mouse };
-
-    const spawnParticles = (x: number, y: number, count: number, type: 'ember' | 'flame', spread: number) => {
-      for(let i=0; i<count; i++) {
-        const isFlame = type === 'flame';
-        const speed = isFlame ? 5 : 1.5;
-        // Flames burst upward faster, embers drift
-        const vy = isFlame ? -Math.random() * speed - 2 : -Math.random() * speed - 0.5;
-        
-        particles.push({
-          x: x + (Math.random() - 0.5) * spread,
-          y: y + (Math.random() - 0.5) * spread,
-          vx: (Math.random() - 0.5) * speed * (isFlame ? 1 : 0.5),
-          vy: vy, 
-          life: 1.0,
-          decay: Math.random() * 0.03 + 0.015,
-          size: Math.random() * (isFlame ? 50 : 5) + 2,
-          type,
-          turbulence: Math.random() * 0.1 // Individual wiggle offset
-        });
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      mouse.x = e.touches[0].clientX;
-      mouse.y = e.touches[0].clientY;
-    };
-
-    const handleMouseDown = () => {
-      // Explosion burst!
-      spawnParticles(mouse.x, mouse.y, 60, 'flame', 40); 
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('touchmove', handleTouchMove);
+    const particles: any[] = [];
+    const particleCount = Math.min(3, Math.floor(canvas.width / 300)); 
 
     const draw = () => {
-      // Clear with dark trail for that "burned into retina" look
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = 'rgba(5, 2, 0, 0.2)'; 
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Spawn embers on move
-      const dx = mouse.x - lastMouse.x;
-      const dy = mouse.y - lastMouse.y;
-      const speed = Math.sqrt(dx*dx + dy*dy);
-      
-      if (speed > 2) {
-        // More speed = more embers
-        spawnParticles(mouse.x, mouse.y, Math.min(Math.floor(speed / 3), 6), 'ember', 15);
-      }
-      
-      // Bottom Idle Fire
-      if (Math.random() < 0.3) {
-         spawnParticles(Math.random() * canvas.width, canvas.height + 20, 2, 'ember', 20);
-      }
-
-      lastMouse = { ...mouse };
-
-      ctx.globalCompositeOperation = 'screen'; // Additive blending for glow intensity
-
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        
-        // Heat distortion: Sine wave + random turbulence
-        p.x += p.vx + Math.sin(p.y * 0.02 + p.turbulence) * 0.8;
-        p.y += p.vy;
-        p.life -= p.decay;
-        p.size *= 0.96; // Shrink as it cools
-
-        if (p.life <= 0 || p.size < 0.5) {
-          particles.splice(i, 1);
-          continue;
-        }
-
-        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-        
-        if (p.type === 'flame') {
-           // White hot core -> Gold -> Orange -> Red -> Transp
-           gradient.addColorStop(0, `rgba(255, 255, 220, ${p.life})`);
-           gradient.addColorStop(0.2, `rgba(255, 200, 50, ${p.life * 0.9})`);
-           gradient.addColorStop(0.5, `rgba(255, 80, 0, ${p.life * 0.6})`);
-           gradient.addColorStop(1, `rgba(100, 0, 0, 0)`);
-        } else {
-           // Embers: Yellow -> Red -> Grey/Ash
-           const r = 255;
-           const g = Math.floor(180 * p.life);
-           gradient.addColorStop(0, `rgba(${r}, ${g}, 50, ${p.life})`);
-           gradient.addColorStop(1, `rgba(${r}, 0, 0, 0)`);
-        }
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      requestAnimationFrame(draw);
-    };
-
-    const anim = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(anim);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, [size]);
-
-  return (
-    <div ref={containerRef} className="fixed inset-0 pointer-events-none z-[5] overflow-hidden mix-blend-screen">
-      <canvas ref={canvasRef} />
-    </div>
-  );
-};
-
-const ChromaAura: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const size = useContainerSize(containerRef);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = size.width || window.innerWidth;
-    canvas.height = size.height || window.innerHeight;
-
-    let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
-    let targetMouse = { x: canvas.width / 2, y: canvas.height / 2 };
-    let velocity = { x: 0, y: 0 };
-    let auraIntensity = 0; // 0 (calm) to 1 (focus/click)
-    let time = 0;
-    let isMouseDown = false;
-
-    const handleMouseMove = (e: MouseEvent) => {
-        targetMouse.x = e.clientX;
-        targetMouse.y = e.clientY;
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-        targetMouse.x = e.touches[0].clientX;
-        targetMouse.y = e.touches[0].clientY;
-    };
-
-    const handleMouseDown = () => { isMouseDown = true; };
-    const handleMouseUp = () => { isMouseDown = false; };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('touchmove', handleTouchMove);
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchstart', handleMouseDown);
-    window.addEventListener('touchend', handleMouseUp);
-
-    const draw = () => {
-      time += 0.02;
-      
-      // Physics: Smooth follow
-      const dx = targetMouse.x - mouse.x;
-      const dy = targetMouse.y - mouse.y;
-      
-      // Lag factor for RGB separation
-      mouse.x += dx * 0.15;
-      mouse.y += dy * 0.15;
-      
-      velocity.x = dx * 0.12;
-      velocity.y = dy * 0.12;
-
-      // Aura Logic: Becomes intense on click, relaxes when idle
-      const targetIntensity = isMouseDown ? 1.0 : 0.0;
-      auraIntensity += (targetIntensity - auraIntensity) * 0.1;
-
-      // Clear
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // --- LAYER 1: AURA (Organic, Soft, Protective) ---
-      // Pulse breathes slowly when idle
-      const breathe = Math.sin(time) * 0.1 + 0.9; 
-      const auraRadius = 80 + (auraIntensity * 40) + (Math.sin(time * 2) * 10);
-      
-      const auraGrad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, auraRadius * 2);
-      // Spectral white/cyan glow
-      auraGrad.addColorStop(0, `rgba(200, 240, 255, ${0.15 + auraIntensity * 0.2})`); 
-      auraGrad.addColorStop(0.5, `rgba(200, 220, 255, ${0.05 + auraIntensity * 0.1})`);
-      auraGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'screen';
-      ctx.fillStyle = auraGrad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
-
-      // --- LAYER 2: CHROMA (Technical, Precision, RGB Split) ---
-      // Use exclusion for that inverted, high-tech look
-      ctx.save();
-      ctx.globalCompositeOperation = 'exclusion';
-      ctx.lineWidth = 1.5;
-
-      // Micro-shift when idle (breathing effect)
-      const idleShiftX = Math.cos(time * 3) * 1.5;
-      const idleShiftY = Math.sin(time * 3) * 1.5;
-
-      const shiftX = Math.max(-15, Math.min(15, velocity.x)) + idleShiftX;
-      const shiftY = Math.max(-15, Math.min(15, velocity.y)) + idleShiftY;
-
-      const reticleSize = 25 - (auraIntensity * 5); // Tighten focus on click
-
-      // RED CHANNEL (Lagging / Minus Shift)
-      ctx.strokeStyle = `rgba(255, 50, 50, 0.9)`;
-      ctx.beginPath();
-      // Crosshair parts
-      ctx.moveTo(mouse.x - shiftX - reticleSize, mouse.y - shiftY);
-      ctx.lineTo(mouse.x - shiftX - (reticleSize/2), mouse.y - shiftY);
-      ctx.moveTo(mouse.x - shiftX + (reticleSize/2), mouse.y - shiftY);
-      ctx.lineTo(mouse.x - shiftX + reticleSize, mouse.y - shiftY);
-      // Ring part
-      ctx.arc(mouse.x - shiftX, mouse.y - shiftY, reticleSize * 0.8, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // GREEN CHANNEL (Center / Anchor)
-      ctx.strokeStyle = `rgba(50, 255, 100, 0.9)`;
-      ctx.beginPath();
-      ctx.moveTo(mouse.x, mouse.y - reticleSize);
-      ctx.lineTo(mouse.x, mouse.y - (reticleSize/2));
-      ctx.moveTo(mouse.x, mouse.y + (reticleSize/2));
-      ctx.lineTo(mouse.x, mouse.y + reticleSize);
-      ctx.arc(mouse.x, mouse.y, reticleSize * 0.8, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // BLUE CHANNEL (Leading / Plus Shift)
-      ctx.strokeStyle = `rgba(50, 100, 255, 0.9)`;
-      ctx.beginPath();
-      // Box corners for blue channel
-      const corner = reticleSize * 0.6;
-      ctx.moveTo(mouse.x + shiftX - corner, mouse.y + shiftY - corner);
-      ctx.lineTo(mouse.x + shiftX + corner, mouse.y + shiftY - corner);
-      ctx.lineTo(mouse.x + shiftX + corner, mouse.y + shiftY + corner);
-      ctx.lineTo(mouse.x + shiftX - corner, mouse.y + shiftY + corner);
-      ctx.closePath();
-      ctx.stroke();
-
-      // Connecting "Data Lines" if moving fast
-      const speed = Math.sqrt(shiftX*shiftX + shiftY*shiftY);
-      if (speed > 4) {
-          ctx.beginPath();
-          ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(speed/30, 0.4)})`;
-          ctx.setLineDash([2, 4]);
-          ctx.moveTo(mouse.x - shiftX, mouse.y - shiftY);
-          ctx.lineTo(mouse.x + shiftX, mouse.y + shiftY);
-          ctx.stroke();
-          ctx.setLineDash([]);
+      if (Math.random() > 0.8) {
+        for (let i = 0; i < particleCount; i++) {
+          particles.push({
+            x: Math.random() * canvas.width,
+            y: canvas.height + 20,
+            r: 5 + Math.random() * 15,
+            v: 2 + Math.random() * 4,
+            life: 1.0,
+            hue: 15 + Math.random() * 30
+          });
+        }
       }
 
-      ctx.restore();
+      particles.forEach((p, i) => {
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 50%, ${p.life})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        p.y -= p.v;
+        p.life -= 0.01;
+        if (p.life <= 0) particles.splice(i, 1);
+      });
       requestAnimationFrame(draw);
     };
 
     const anim = requestAnimationFrame(draw);
-    return () => {
-        cancelAnimationFrame(anim);
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('mousedown', handleMouseDown);
-        window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('touchstart', handleMouseDown);
-        window.removeEventListener('touchend', handleMouseUp);
-    };
+    return () => cancelAnimationFrame(anim);
   }, [size]);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 pointer-events-none z-[100] mix-blend-exclusion">
-      <canvas ref={canvasRef} />
-    </div>
-  );
-};
-
-const SingularityEngine: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const size = useContainerSize(containerRef);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = size.width || window.innerWidth;
-    canvas.height = size.height || window.innerHeight;
-
-    let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
-    let targetMouse = { x: canvas.width / 2, y: canvas.height / 2 };
-    
-    // Grid Setup
-    const GRID_SIZE = 40;
-    const cols = Math.ceil(canvas.width / GRID_SIZE) + 2;
-    const rows = Math.ceil(canvas.height / GRID_SIZE) + 2;
-    const points: {x: number, y: number, ox: number, oy: number}[] = [];
-    
-    for(let y = 0; y < rows; y++) {
-        for(let x = 0; x < cols; x++) {
-            points.push({
-                x: x * GRID_SIZE - GRID_SIZE,
-                y: y * GRID_SIZE - GRID_SIZE,
-                ox: x * GRID_SIZE - GRID_SIZE, // Original Position
-                oy: y * GRID_SIZE - GRID_SIZE
-            });
-        }
-    }
-
-    // Particle Setup (Photons)
-    const particles: {x: number, y: number, vx: number, vy: number, history: {x: number, y: number}[]}[] = [];
-    const PARTICLE_COUNT = 50;
-
-    for(let i=0; i<PARTICLE_COUNT; i++) {
-        particles.push(spawnParticle());
-    }
-
-    function spawnParticle() {
-        // Spawn at edges
-        const side = Math.floor(Math.random() * 4);
-        let x = 0, y = 0, vx = 0, vy = 0;
-        const speed = 2 + Math.random() * 2;
-        
-        if(side === 0) { // Top
-            x = Math.random() * canvas.width; y = -10; vy = speed; vx = (Math.random()-0.5)*2;
-        } else if(side === 1) { // Right
-            x = canvas.width + 10; y = Math.random() * canvas.height; vx = -speed; vy = (Math.random()-0.5)*2;
-        } else if(side === 2) { // Bottom
-            x = Math.random() * canvas.width; y = canvas.height + 10; vy = -speed; vx = (Math.random()-0.5)*2;
-        } else { // Left
-            x = -10; y = Math.random() * canvas.height; vx = speed; vy = (Math.random()-0.5)*2;
-        }
-        return {x, y, vx, vy, history: []};
-    }
-
-    // Ripple Logic
-    let ripple = { active: false, x: 0, y: 0, radius: 0, strength: 0 };
-
-    const handleMouseMove = (e: MouseEvent) => {
-        targetMouse.x = e.clientX;
-        targetMouse.y = e.clientY;
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-        targetMouse.x = e.touches[0].clientX;
-        targetMouse.y = e.touches[0].clientY;
-    };
-
-    const handleMouseDown = () => {
-        ripple = { active: true, x: mouse.x, y: mouse.y, radius: 0, strength: 100 };
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('touchmove', handleTouchMove);
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('touchstart', handleMouseDown);
-
-    const draw = () => {
-      // Physics: Smooth cursor movement (Singularity Center)
-      mouse.x += (targetMouse.x - mouse.x) * 0.1;
-      mouse.y += (targetMouse.y - mouse.y) * 0.1;
-
-      // Update Ripple
-      if (ripple.active) {
-          ripple.radius += 10;
-          ripple.strength *= 0.92;
-          if (ripple.strength < 1) ripple.active = false;
-      }
-
-      ctx.fillStyle = '#000000'; // Void
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // --- 1. DRAW DISTORTED GRID ---
-      ctx.strokeStyle = 'rgba(71, 85, 105, 0.15)'; // Slate 700 low opacity
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-
-      points.forEach(p => {
-          // Calculate Distortion Vector
-          const dx = mouse.x - p.ox;
-          const dy = mouse.y - p.oy;
-          const distSq = dx*dx + dy*dy;
-          const dist = Math.sqrt(distSq);
-          
-          // Inverse distance distortion (Singularity pull)
-          // Limit singularity strength to avoid infinite folding
-          const force = Math.min(100, 8000 / (dist + 50)); 
-          const angle = Math.atan2(dy, dx);
-          
-          let displaceX = Math.cos(angle) * force;
-          let displaceY = Math.sin(angle) * force;
-
-          // Ripple effect (pushes out then pulls in)
-          if (ripple.active) {
-              const rdx = p.ox - ripple.x;
-              const rdy = p.oy - ripple.y;
-              const rDist = Math.sqrt(rdx*rdx + rdy*rdy);
-              const wave = Math.sin((rDist - ripple.radius) * 0.05);
-              const rForce = wave * ripple.strength * Math.exp(-Math.abs(rDist - ripple.radius)/50);
-              const rAngle = Math.atan2(rdy, rdx);
-              displaceX += Math.cos(rAngle) * rForce;
-              displaceY += Math.sin(rAngle) * rForce;
-          }
-
-          p.x = p.ox + displaceX;
-          p.y = p.oy + displaceY;
-      });
-
-      // Draw horizontal lines
-      for(let y=0; y<rows; y++) {
-          const startIdx = y * cols;
-          ctx.moveTo(points[startIdx].x, points[startIdx].y);
-          for(let x=1; x<cols; x++) {
-              const p = points[startIdx + x];
-              ctx.lineTo(p.x, p.y);
-          }
-      }
-      // Draw vertical lines
-      for(let x=0; x<cols; x++) {
-          ctx.moveTo(points[x].x, points[x].y);
-          for(let y=1; y<rows; y++) {
-              const p = points[x + y * cols];
-              ctx.lineTo(p.x, p.y);
-          }
-      }
-      ctx.stroke();
-
-      // --- 2. PHOTON PARTICLES (Geodesics) ---
-      particles.forEach((p, idx) => {
-          // Update velocity based on gravity
-          const dx = mouse.x - p.x;
-          const dy = mouse.y - p.y;
-          const distSq = dx*dx + dy*dy;
-          const dist = Math.sqrt(distSq);
-
-          // Event Horizon Absorption
-          if (dist < 20) {
-              particles[idx] = spawnParticle();
-              return;
-          }
-
-          // Gravitational Acceleration (Perpendicular component changes direction, parallel changes speed)
-          // We want light bending, so modify velocity vector towards mass
-          const gForce = 500 / distSq; 
-          const angle = Math.atan2(dy, dx);
-          p.vx += Math.cos(angle) * gForce;
-          p.vy += Math.sin(angle) * gForce;
-
-          // Limit max speed (speed of light constant-ish)
-          const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-          if (speed > 8) {
-              p.vx = (p.vx / speed) * 8;
-              p.vy = (p.vy / speed) * 8;
-          }
-
-          p.x += p.vx;
-          p.y += p.vy;
-
-          // History trail
-          p.history.push({x: p.x, y: p.y});
-          if(p.history.length > 10) p.history.shift();
-
-          // Respawn if out of bounds
-          if (p.x < -50 || p.x > canvas.width + 50 || p.y < -50 || p.y > canvas.height + 50) {
-              particles[idx] = spawnParticle();
-          }
-
-          // Draw Trail
-          ctx.beginPath();
-          ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(1, 200/distSq + 0.2)})`; // Brighten near singularity
-          ctx.lineWidth = 1;
-          if(p.history.length > 0) ctx.moveTo(p.history[0].x, p.history[0].y);
-          for(let h of p.history) ctx.lineTo(h.x, h.y);
-          ctx.stroke();
-      });
-
-      // --- 3. SINGULARITY CORE ---
-      // Accretion Halo
-      const grad = ctx.createRadialGradient(mouse.x, mouse.y, 15, mouse.x, mouse.y, 60);
-      grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
-      grad.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)'); // Photon Ring
-      grad.addColorStop(0.25, 'rgba(100, 200, 255, 0.3)');
-      grad.addColorStop(1, 'transparent');
-      
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(mouse.x, mouse.y, 60, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Absolute Void Center
-      ctx.fillStyle = 'black';
-      ctx.beginPath();
-      ctx.arc(mouse.x, mouse.y, 18, 0, Math.PI * 2);
-      ctx.fill();
-
-      requestAnimationFrame(draw);
-    };
-
-    const anim = requestAnimationFrame(draw);
-    return () => {
-        cancelAnimationFrame(anim);
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('mousedown', handleMouseDown);
-        window.removeEventListener('touchstart', handleMouseDown);
-    };
-  }, [size]);
-
-  return (
-    <div ref={containerRef} className="fixed inset-0 pointer-events-none z-[0]">
+    <div ref={containerRef} className="fixed inset-0 pointer-events-none z-[5] overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-t from-orange-500/10 to-transparent" />
       <canvas ref={canvasRef} />
     </div>
   );
@@ -1469,20 +920,20 @@ const LeaderboardView: React.FC<{ currentUser: User; onChallenge: (u: User) => v
 };
 
 const ShopView: React.FC<{ user: User; onBuy: (item: ShopItem) => void; onPreview: (item: ShopItem) => void; previewEffect: string | null; isDarkMode: boolean }> = ({ user, onBuy, onPreview, previewEffect, isDarkMode }) => {
-  const [filter, setFilter] = useState<'all' | 'avatar' | 'effect' | 'voucher'>('all');
+  const [filter, setFilter] = useState<'all' | 'avatar' | 'effect' | 'voucher' | 'calculator'>('all');
 
   const filteredItems = SHOP_ITEMS.filter(i => filter === 'all' || i.type === filter);
 
   return (
     <div className="space-y-6">
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {(['all', 'avatar', 'effect', 'voucher'] as const).map(f => (
+        {(['all', 'avatar', 'effect', 'voucher', 'calculator'] as const).map(f => (
           <button 
             key={f} 
             onClick={() => setFilter(f)} 
             className={`px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider whitespace-nowrap transition-all ${filter === f ? (isDarkMode ? 'bg-white text-slate-900' : 'bg-slate-900 text-white') : (isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-white text-slate-500')}`}
           >
-            {f === 'all' ? 'Alles' : f === 'avatar' ? 'Avatare' : f === 'effect' ? 'Effekte' : 'Gutscheine'}
+            {f === 'all' ? 'Alles' : f === 'avatar' ? 'Avatare' : f === 'effect' ? 'Effekte' : f === 'calculator' ? 'Skins' : 'Gutscheine'}
           </button>
         ))}
       </div>
@@ -1495,7 +946,6 @@ const ShopView: React.FC<{ user: User; onBuy: (item: ShopItem) => void; onPrevie
            return (
              <GlassCard key={item.id} className={`!p-4 flex flex-col items-center text-center gap-3 ${owned ? 'opacity-50 grayscale' : ''}`}>
                 <div className="text-4xl drop-shadow-md transition-transform hover:scale-110 duration-300">
-                    {/* NEW: Use item.icon if available, else item.value */}
                     {item.icon || item.value}
                 </div>
                 <div>
@@ -1577,9 +1027,10 @@ const UnitModal: React.FC<{ unit: LearningUnit; config: any; onConfigChange: (c:
   );
 };
 
-const InventoryModal: React.FC<{ user: User; onClose: () => void; onToggleEffect: (id: string) => void; onAvatarChange: (val: string) => void }> = ({ user, onClose, onToggleEffect, onAvatarChange }) => {
+const InventoryModal: React.FC<{ user: User; onClose: () => void; onToggleEffect: (id: string) => void; onAvatarChange: (val: string) => void; onSkinChange: (val: string) => void }> = ({ user, onClose, onToggleEffect, onAvatarChange, onSkinChange }) => {
   const ownedAvatars = SHOP_ITEMS.filter(i => i.type === 'avatar' && (i.cost === 0 || user.unlockedItems.includes(i.id)));
   const ownedEffects = SHOP_ITEMS.filter(i => i.type === 'effect' && user.unlockedItems.includes(i.id));
+  const ownedSkins = SHOP_ITEMS.filter(i => i.type === 'calculator' && (i.cost === 0 || user.unlockedItems.includes(i.id)));
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -1598,6 +1049,20 @@ const InventoryModal: React.FC<{ user: User; onClose: () => void; onToggleEffect
                   className={`aspect-square rounded-2xl text-2xl flex items-center justify-center border-2 transition-all ${user.avatar === av.value ? 'bg-indigo-50 border-indigo-500 scale-110 shadow-lg' : 'bg-white border-slate-100 hover:border-indigo-200'}`}
                 >
                    {av.icon || av.value}
+                </button>
+             ))}
+          </div>
+
+          <h3 className="font-bold text-slate-400 uppercase tracking-widest mb-4">Taschenrechner Skins</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+             {ownedSkins.map(sk => (
+                <button 
+                  key={sk.id} 
+                  onClick={() => onSkinChange(sk.value)}
+                  className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${user.calculatorSkin === sk.value ? 'bg-indigo-50 border-indigo-500 shadow-md' : 'bg-white border-slate-100 hover:border-indigo-200'}`}
+                >
+                   <span className="text-2xl">{sk.icon}</span>
+                   <span className="text-[10px] font-bold uppercase">{sk.name}</span>
                 </button>
              ))}
           </div>
@@ -1958,6 +1423,7 @@ export default function App() {
   const activeEffect = (name: string) => user?.activeEffects.includes(name) || previewEffect === name;
   const isDarkMode = activeEffect('dark');
   const hasRainbow = activeEffect('rainbow');
+  const hasSingularity = activeEffect('singularity');
 
   // Swipe logic state
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -2173,7 +1639,7 @@ export default function App() {
 
   return (
     <div 
-      className={`min-h-screen transition-all ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-[#fcfdfe] text-slate-900'} overflow-x-hidden`}
+      className={`min-h-screen transition-all ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-[#fcfdfe] text-slate-900'} overflow-x-hidden ${hasSingularity ? 'invert hue-rotate-180' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -2184,15 +1650,13 @@ export default function App() {
       {/* Visual Effects */}
       {activeEffect('rain') && <MatrixRain />}
       {activeEffect('storm') && <ElectricStorm />}
+      {activeEffect('dark') && <VoidProtocol />}
       {activeEffect('unicorn') && <UnicornMagic />}
       {activeEffect('neon') && <NeonDreams />}
       {activeEffect('galaxy') && <GalaxyMode />}
       {activeEffect('fire') && <FireBlaze />}
-      {activeEffect('rainbow') && <ChromaAura />}
-      {activeEffect('singularity') && <SingularityEngine />}
 
-      {/* Global Calculator Widget */}
-      {isCalculatorOpen && <CalculatorWidget onClose={() => setIsCalculatorOpen(false)} />}
+      {isCalculatorOpen && <CalculatorWidget onClose={() => setIsCalculatorOpen(false)} skin={user.calculatorSkin} />}
 
       {!isTaskMode && !isBattleMode && (
         <>
@@ -2222,10 +1686,11 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2 items-center">
                <button 
-                 onClick={() => setIsCalculatorOpen(!isCalculatorOpen)}
-                 className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isCalculatorOpen ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                 onClick={() => setIsCalculatorOpen(!isCalculatorOpen)} 
+                 className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all active:scale-95 ${isCalculatorOpen ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`} 
+                 title="Taschenrechner"
                >
                  🧮
                </button>
@@ -2317,6 +1782,10 @@ export default function App() {
         await DataService.updateUser(updated);
       }} onAvatarChange={async (val) => {
         const updated = { ...user, avatar: val };
+        setUser(updated);
+        await DataService.updateUser(updated);
+      }} onSkinChange={async (val) => {
+        const updated = { ...user, calculatorSkin: val };
         setUser(updated);
         await DataService.updateUser(updated);
       }} />}

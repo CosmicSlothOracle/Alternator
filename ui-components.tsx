@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
 // --- Typography & Layout ---
 
@@ -250,6 +251,277 @@ export const ModalOverlay: React.FC<{ onClose: () => void; children: React.React
   );
 };
 
+// --- Tools ---
+
+export const CalculatorWidget: React.FC<{ onClose: () => void; skin?: string }> = ({ onClose, skin = 'default' }) => {
+  const [display, setDisplay] = useState('');
+  const [result, setResult] = useState('');
+  const [position, setPosition] = useState({ x: 20, y: 80 });
+  const [size, setSize] = useState({ w: 320, h: 480 });
+  
+  const [interaction, setInteraction] = useState<'idle' | 'dragging' | 'resizing'>('idle');
+  const interactionStartRef = useRef({ x: 0, y: 0, w: 0, h: 0, posX: 0, posY: 0 });
+
+  const MIN_WIDTH = 180;
+  const MIN_HEIGHT = 280;
+  const MAX_WIDTH = 320;
+  const MAX_HEIGHT = 480;
+
+  const startInteraction = (
+    e: React.MouseEvent | React.TouchEvent,
+    type: 'dragging' | 'resizing'
+  ) => {
+    e.stopPropagation();
+    const point = 'touches' in e ? e.touches[0] : e;
+    if ((type === 'dragging' && (e.target as HTMLElement).closest('button'))) return;
+    
+    setInteraction(type);
+    interactionStartRef.current = {
+      x: point.clientX,
+      y: point.clientY,
+      w: size.w,
+      h: size.h,
+      posX: position.x,
+      posY: position.y,
+    };
+  };
+
+  useEffect(() => {
+    if (interaction === 'idle') return;
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const point = 'touches' in e ? e.touches[0] : e;
+      if (!point) return;
+      const start = interactionStartRef.current;
+      const deltaX = point.clientX - start.x;
+      const deltaY = point.clientY - start.y;
+
+      if (interaction === 'dragging') {
+        const newX = start.posX + deltaX;
+        const newY = start.posY + deltaY;
+        setPosition({ 
+            x: Math.max(0, Math.min(window.innerWidth - size.w, newX)),
+            y: Math.max(0, Math.min(window.innerHeight - size.h, newY))
+        });
+      } else if (interaction === 'resizing') {
+        const newW = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, start.w + deltaX));
+        const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, start.h + deltaY));
+        setSize({ w: newW, h: newH });
+      }
+    };
+
+    const handleEnd = () => {
+      setInteraction('idle');
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchend', handleEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [interaction, size.w, size.h]);
+
+  const handleInput = (val: string) => {
+    if (result && !isNaN(Number(val)) && !isNaN(Number(display))) {
+       setDisplay(val);
+       setResult('');
+    } else if (result) {
+       setDisplay(result + val);
+       setResult('');
+    } else {
+       setDisplay(prev => prev + val);
+    }
+  };
+
+  const clear = () => {
+    setDisplay('');
+    setResult('');
+  };
+
+  const backspace = () => {
+    setDisplay(prev => prev.slice(0, -1));
+  };
+
+  const calculate = () => {
+    try {
+      let expression = display
+        .replace(/×/g, '*')
+        .replace(/÷/g, '/')
+        .replace(/²/g, '**2')
+        .replace(/√(\d+(\.\d+)?)/g, 'Math.sqrt($1)')
+        .replace(/√\(([^)]+)\)/g, 'Math.sqrt($1)')
+        .replace(/%/g, '/100');
+
+      if (!expression.trim() || /[^0-9+\-*/().\sMathsqrt*]/.test(expression.replace(/Math.sqrt/g, ''))) {
+         throw new Error("Invalid");
+      }
+
+      // eslint-disable-next-line no-new-func
+      const res = new Function(`return ${expression}`)();
+      let formatted = parseFloat(res.toFixed(8)).toString();
+      setResult(formatted);
+    } catch (e) {
+      setResult('Error');
+    }
+  };
+
+  const styles = useMemo(() => {
+    switch (skin) {
+      case 'neon': return {
+        container: 'bg-black/90 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.3)]',
+        header: 'bg-black/50 border-green-900 text-green-500',
+        display: 'bg-black text-green-400 font-mono tracking-widest border-green-900',
+        displayLabel: 'text-green-800',
+        btn: 'bg-black border-green-900 text-green-500 hover:bg-green-900/40 hover:shadow-[0_0_10px_rgba(34,197,94,0.5)] font-mono',
+        btnPrimary: 'bg-green-700 text-black border-green-500 shadow-green-500/50 hover:bg-green-500',
+        btnDanger: 'text-green-700 border-green-900 hover:text-green-500 hover:bg-green-900/20',
+        title: 'NEON OS v9.0'
+      };
+      case 'chaos': return {
+        container: 'bg-purple-900/90 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)]',
+        header: 'bg-purple-800/50 border-pink-500/30 text-pink-300',
+        display: 'bg-purple-950 text-pink-200 border-pink-500/30',
+        displayLabel: 'text-pink-700',
+        btn: 'bg-purple-800 border-purple-600 text-pink-300 hover:bg-pink-600 hover:text-white hover:rotate-6 transition-transform',
+        btnPrimary: 'bg-gradient-to-r from-pink-500 to-purple-600 text-white border-none',
+        btnDanger: 'bg-red-900/50 text-red-300 border-red-800',
+        title: 'CHaOs CaLc 🔥'
+      };
+      case 'soup': return {
+        container: 'bg-[#fffbeb] border-amber-300 shadow-xl',
+        header: 'bg-amber-100 border-amber-200 text-amber-800 font-serif italic',
+        display: 'bg-white border-amber-200 text-amber-900 font-serif',
+        displayLabel: 'text-amber-300',
+        btn: 'bg-white border-amber-200 text-amber-800 hover:bg-amber-50 font-serif font-black',
+        btnPrimary: 'bg-amber-500 text-white border-amber-600 hover:bg-amber-400',
+        btnDanger: 'text-rose-400 bg-rose-50 border-rose-200',
+        title: 'Alphabet Soup'
+      };
+      default: return {
+        container: 'bg-white/90 border-slate-200 shadow-2xl backdrop-blur-xl',
+        header: 'bg-slate-100/50 border-slate-200 text-slate-500',
+        display: 'bg-slate-50 border-slate-100 text-slate-800',
+        displayLabel: 'text-slate-400',
+        btn: 'bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100',
+        btnPrimary: 'bg-indigo-600 text-white shadow-indigo-500/30 hover:bg-indigo-500',
+        btnDanger: 'bg-rose-50 border-rose-100 text-rose-500 hover:bg-rose-100',
+        title: 'TASCHENRECHNER'
+      };
+    }
+  }, [skin]);
+
+  const scaleFactor = useMemo(() => size.w / MAX_WIDTH, [size.w]);
+
+  const dynamicStyles = useMemo(() => ({
+    headerIconSize: `${Math.max(1.1, 1.5 * scaleFactor)}rem`,
+    headerTitleSize: `${Math.max(0.6, 0.75 * scaleFactor)}rem`,
+    displayLabelSize: `${Math.max(0.6, 0.875 * scaleFactor)}rem`,
+    displayResultSize: `${Math.max(1.2, 1.875 * scaleFactor)}rem`,
+    buttonFontSize: `${Math.max(0.7, 1.125 * scaleFactor)}rem`,
+    gridGap: `${Math.max(4, 8 * scaleFactor)}px`,
+    padding: `${Math.max(8, 16 * scaleFactor)}px`,
+  }), [scaleFactor]);
+
+  const getLabel = (l: string) => {
+    if (skin === 'chaos') {
+      if (l === '×') return '🔥'; if (l === '÷') return '🧊'; if (l === '+') return '🪜';
+      if (l === '-') return '🕳️'; if (l === 'C') return '💥';
+    }
+    if (skin === 'soup') {
+      if (l === '×') return '🤝'; if (l === '÷') return '💔'; if (l === '+') return '➕'; if (l === '-') return '➖';
+      const map: Record<string, string> = {'1':'A','2':'B','3':'C','4':'D','5':'E','6':'F','7':'G','8':'H','9':'I','0':'Z'};
+      if (map[l]) return map[l];
+    }
+    return l;
+  };
+
+  const Btn = ({ l, v, c, isPrimary, isDanger }: { l: string, v?: string, c?: string, isPrimary?: boolean, isDanger?: boolean }) => {
+    const rotation = useMemo(() => skin === 'chaos' ? Math.random() * 6 - 3 : 0, [skin]);
+    return (
+      <button 
+        onClick={() => v ? handleInput(v) : undefined} 
+        style={{ transform: `rotate(${rotation}deg)`, fontSize: dynamicStyles.buttonFontSize }}
+        title={v || l}
+        className={`h-full w-full rounded-xl font-bold active:scale-95 transition-all shadow-sm border flex items-center justify-center min-h-[2rem] ${isPrimary ? styles.btnPrimary : isDanger ? styles.btnDanger : styles.btn} ${c || ''}`}
+      >
+        {getLabel(l)}
+      </button>
+    );
+  };
+
+  return (
+    <div 
+      style={{ left: position.x, top: position.y, width: size.w, height: size.h }}
+      className={`fixed z-[160] rounded-[2rem] overflow-hidden border animate-in zoom-in-95 duration-200 flex flex-col ${styles.container}`}
+    >
+      <div 
+        onMouseDown={e => startInteraction(e, 'dragging')}
+        onTouchStart={e => startInteraction(e, 'dragging')}
+        style={{ padding: dynamicStyles.padding }}
+        className={`flex justify-between items-center cursor-move select-none border-b shrink-0 ${styles.header}`}
+      >
+        <div className="flex items-center gap-2 pointer-events-none">
+           <span style={{ fontSize: dynamicStyles.headerIconSize }}>{skin === 'neon' ? '📟' : skin === 'chaos' ? '🤪' : skin === 'soup' ? '🍲' : '🧮'}</span>
+           <span className="font-black uppercase tracking-widest" style={{ fontSize: dynamicStyles.headerTitleSize }}>{styles.title}</span>
+        </div>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center bg-black/10 rounded-full hover:bg-rose-500 hover:text-white transition-colors">✕</button>
+      </div>
+
+      <div style={{ padding: dynamicStyles.padding }} className={`text-right border-b shrink-0 ${styles.display}`}>
+         <div className="h-6 font-medium overflow-hidden whitespace-nowrap flex items-center justify-end" style={{ fontSize: dynamicStyles.displayLabelSize }}>{display || '0'}</div>
+         <div className="h-10 font-black overflow-hidden whitespace-nowrap flex items-center justify-end" style={{ fontSize: dynamicStyles.displayResultSize }}>{result || (display ? '=' : '')}</div>
+      </div>
+
+      <div style={{ padding: dynamicStyles.padding, gap: dynamicStyles.gridGap }} className={`grid grid-cols-4 flex-1 h-full min-h-0`}>
+         <button style={{fontSize: `calc(${dynamicStyles.buttonFontSize} * 0.8)`}} onClick={clear} className={`col-span-2 h-full rounded-xl font-black uppercase tracking-widest border ${styles.btnDanger}`}>Clear</button>
+         <button style={{fontSize: dynamicStyles.buttonFontSize}} onClick={backspace} className={`h-full rounded-xl font-bold border ${styles.btn}`}>⌫</button>
+         <Btn l="÷" v="÷" />
+         <Btn l="(" v="(" />
+         <Btn l=")" v=")" />
+         <Btn l="%" v="%" />
+         <Btn l="×" v="×" />
+         <Btn l="7" v="7" />
+         <Btn l="8" v="8" />
+         <Btn l="9" v="9" />
+         <Btn l="-" v="-" />
+         <Btn l="4" v="4" />
+         <Btn l="5" v="5" />
+         <Btn l="6" v="6" />
+         <Btn l="+" v="+" />
+         <Btn l="1" v="1" />
+         <Btn l="2" v="2" />
+         <Btn l="3" v="3" />
+         <button 
+            onClick={() => calculate()} 
+            style={{fontSize: `calc(${dynamicStyles.buttonFontSize} * 1.2)`}}
+            className={`row-span-2 h-full rounded-xl font-black shadow-lg active:translate-y-1 ${styles.btnPrimary}`}
+         >
+           =
+         </button>
+         <Btn l="0" v="0" />
+         <Btn l="." v="." />
+         <Btn l="x²" v="²" />
+      </div>
+
+      <div 
+        onMouseDown={(e) => startInteraction(e, 'resizing')}
+        onTouchStart={(e) => startInteraction(e, 'resizing')}
+        className="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize z-50 flex items-end justify-end p-1 opacity-50 hover:opacity-100 touch-none"
+      >
+        <svg viewBox="0 0 10 10" className="w-4 h-4 text-current pointer-events-none">
+           <path d="M 10,10 L 10,0 L 0,10 Z" fill="currentColor" />
+        </svg>
+      </div>
+    </div>
+  );
+};
+
 // --- Interaction ---
 
 export const PullToRefresh: React.FC<{ onRefresh: () => Promise<void>, children: React.ReactNode, className?: string }> = ({ onRefresh, children, className = '' }) => {
@@ -316,4 +588,4 @@ export const PullToRefresh: React.FC<{ onRefresh: () => Promise<void>, children:
       {children}
     </div>
   )
-}
+};

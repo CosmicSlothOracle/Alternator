@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
 // --- Typography & Layout ---
 
@@ -252,7 +252,7 @@ export const ModalOverlay: React.FC<{ onClose: () => void; children: React.React
 
 // --- Tools ---
 
-export const CalculatorWidget: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const CalculatorWidget: React.FC<{ onClose: () => void; skin?: string }> = ({ onClose, skin = 'default' }) => {
   const [display, setDisplay] = useState('');
   const [result, setResult] = useState('');
   const [position, setPosition] = useState({ x: 20, y: 80 });
@@ -268,7 +268,6 @@ export const CalculatorWidget: React.FC<{ onClose: () => void }> = ({ onClose })
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
-      // Constraint to window bounds roughly
       const newX = Math.max(0, Math.min(window.innerWidth - 300, e.clientX - dragStart.current.x));
       const newY = Math.max(0, Math.min(window.innerHeight - 400, e.clientY - dragStart.current.y));
       setPosition({ x: newX, y: newY });
@@ -287,13 +286,10 @@ export const CalculatorWidget: React.FC<{ onClose: () => void }> = ({ onClose })
   }, [isDragging]);
 
   const handleInput = (val: string) => {
-    // Basic logic
     if (result && !isNaN(Number(val)) && !isNaN(Number(display))) {
-       // Start new calculation if user types number after result
        setDisplay(val);
        setResult('');
     } else if (result) {
-       // Continue with result if operator
        setDisplay(result + val);
        setResult('');
     } else {
@@ -312,28 +308,20 @@ export const CalculatorWidget: React.FC<{ onClose: () => void }> = ({ onClose })
 
   const calculate = () => {
     try {
-      // Safe-ish eval for school math
       let expression = display
         .replace(/×/g, '*')
         .replace(/÷/g, '/')
-        .replace(/²/g, '**2') // Handle x² display
-        .replace(/√(\d+(\.\d+)?)/g, 'Math.sqrt($1)') // Handle √4 simple case
-        .replace(/√\(([^)]+)\)/g, 'Math.sqrt($1)'); // Handle √(4+5) complex case
+        .replace(/²/g, '**2')
+        .replace(/√(\d+(\.\d+)?)/g, 'Math.sqrt($1)')
+        .replace(/√\(([^)]+)\)/g, 'Math.sqrt($1)')
+        .replace(/%/g, '/100');
 
-      // Basic percentage logic: 50% -> 0.5, but 100 + 50% -> 100 + 100*0.5
-      // Simplest for school: % -> /100
-      expression = expression.replace(/%/g, '/100');
-
-      // Check for empty or invalid chars
       if (!expression.trim() || /[^0-9+\-*/().\sMathsqrt*]/.test(expression.replace(/Math.sqrt/g, ''))) {
          throw new Error("Invalid");
       }
 
-      // Execute
       // eslint-disable-next-line no-new-func
       const res = new Function(`return ${expression}`)();
-      
-      // Format: max 8 decimals, remove trailing zeros
       let formatted = parseFloat(res.toFixed(8)).toString();
       setResult(formatted);
     } catch (e) {
@@ -341,74 +329,155 @@ export const CalculatorWidget: React.FC<{ onClose: () => void }> = ({ onClose })
     }
   };
 
-  const Btn = ({ l, v, c }: { l: React.ReactNode, v?: string, c?: string }) => (
-    <button 
-      onClick={() => v ? handleInput(v) : undefined} 
-      className={`h-12 rounded-xl font-bold text-lg active:scale-95 transition-all shadow-sm border border-slate-100 ${c || 'bg-slate-50 text-slate-700 hover:bg-slate-100'}`}
-    >
-      {l}
-    </button>
-  );
+  // --- SKIN LOGIC ---
+  const styles = useMemo(() => {
+    switch (skin) {
+      case 'neon': return {
+        container: 'bg-black/90 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.3)]',
+        header: 'bg-black/50 border-green-900 text-green-500',
+        display: 'bg-black text-green-400 font-mono tracking-widest border-green-900',
+        displayLabel: 'text-green-800',
+        btn: 'bg-black border-green-900 text-green-500 hover:bg-green-900/40 hover:shadow-[0_0_10px_rgba(34,197,94,0.5)] font-mono',
+        btnPrimary: 'bg-green-700 text-black border-green-500 shadow-green-500/50 hover:bg-green-500',
+        btnDanger: 'text-green-700 border-green-900 hover:text-green-500 hover:bg-green-900/20',
+        title: 'NEON OS v9.0'
+      };
+      case 'chaos': return {
+        container: 'bg-purple-900/90 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)]',
+        header: 'bg-purple-800/50 border-pink-500/30 text-pink-300',
+        display: 'bg-purple-950 text-pink-200 border-pink-500/30',
+        displayLabel: 'text-pink-700',
+        btn: 'bg-purple-800 border-purple-600 text-pink-300 hover:bg-pink-600 hover:text-white hover:rotate-6 transition-transform',
+        btnPrimary: 'bg-gradient-to-r from-pink-500 to-purple-600 text-white border-none',
+        btnDanger: 'bg-red-900/50 text-red-300 border-red-800',
+        title: 'CHaOs CaLc 🔥'
+      };
+      case 'soup': return {
+        container: 'bg-[#fffbeb] border-amber-300 shadow-xl',
+        header: 'bg-amber-100 border-amber-200 text-amber-800 font-serif italic',
+        display: 'bg-white border-amber-200 text-amber-900 font-serif',
+        displayLabel: 'text-amber-300',
+        btn: 'bg-white border-amber-200 text-amber-800 hover:bg-amber-50 font-serif font-black',
+        btnPrimary: 'bg-amber-500 text-white border-amber-600 hover:bg-amber-400',
+        btnDanger: 'text-rose-400 bg-rose-50 border-rose-200',
+        title: 'Alphabet Soup'
+      };
+      default: return {
+        container: 'bg-white/90 border-slate-200 shadow-2xl backdrop-blur-xl',
+        header: 'bg-slate-100/50 border-slate-200 text-slate-500',
+        display: 'bg-slate-50 border-slate-100 text-slate-800',
+        displayLabel: 'text-slate-400',
+        btn: 'bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100',
+        btnPrimary: 'bg-indigo-600 text-white shadow-indigo-500/30 hover:bg-indigo-500',
+        btnDanger: 'bg-rose-50 border-rose-100 text-rose-500 hover:bg-rose-100',
+        title: 'TASCHENRECHNER'
+      };
+    }
+  }, [skin]);
+
+  const getLabel = (l: string) => {
+    if (skin === 'chaos') {
+      if (l === '×') return '🔥';
+      if (l === '÷') return '🧊';
+      if (l === '+') return '🪜';
+      if (l === '-') return '🕳️';
+      if (l === 'C') return '💥';
+    }
+    if (skin === 'soup') {
+      // Metaphorical Labels
+      if (l === '×') return '🤝';
+      if (l === '÷') return '💔';
+      if (l === '+') return '➕';
+      if (l === '-') return '➖';
+      const map: Record<string, string> = {'1':'A','2':'B','3':'C','4':'D','5':'E','6':'F','7':'G','8':'H','9':'I','0':'Z'};
+      if (map[l]) return map[l];
+    }
+    return l;
+  };
+
+  const Btn = ({ l, v, c, isPrimary, isDanger }: { l: string, v?: string, c?: string, isPrimary?: boolean, isDanger?: boolean }) => {
+    // Random rotation for Chaos mode
+    const rotation = useMemo(() => skin === 'chaos' ? Math.random() * 6 - 3 : 0, []);
+    
+    return (
+      <button 
+        onClick={() => v ? handleInput(v) : undefined} 
+        style={{ transform: `rotate(${rotation}deg)` }}
+        title={v || l} // Tooltip reveals real value
+        className={`
+          h-12 rounded-xl font-bold text-lg active:scale-95 transition-all shadow-sm border 
+          ${isPrimary ? styles.btnPrimary : isDanger ? styles.btnDanger : styles.btn}
+          ${c || ''}
+        `}
+      >
+        {getLabel(l)}
+      </button>
+    );
+  };
 
   return (
     <div 
       style={{ left: position.x, top: position.y }}
-      className="fixed z-[160] w-80 shadow-2xl rounded-[2rem] overflow-hidden backdrop-blur-xl bg-white/90 border border-slate-200 animate-in zoom-in-95 duration-200"
+      className={`fixed z-[160] w-80 rounded-[2rem] overflow-hidden border animate-in zoom-in-95 duration-200 ${styles.container}`}
     >
-      {/* Header (Draggable) */}
+      {/* Header */}
       <div 
         onMouseDown={handleMouseDown}
-        className="bg-slate-100/50 p-4 flex justify-between items-center cursor-move select-none border-b border-slate-200"
+        className={`p-4 flex justify-between items-center cursor-move select-none border-b ${styles.header}`}
       >
         <div className="flex items-center gap-2">
-           <span className="text-xl">🧮</span>
-           <span className="font-black text-xs uppercase tracking-widest text-slate-500">Taschenrechner</span>
+           <span className="text-xl">{skin === 'neon' ? '📟' : skin === 'chaos' ? '🤪' : skin === 'soup' ? '🍲' : '🧮'}</span>
+           <span className="font-black text-xs uppercase tracking-widest">{styles.title}</span>
         </div>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-full text-slate-500 hover:bg-rose-500 hover:text-white transition-colors">✕</button>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center bg-black/10 rounded-full hover:bg-rose-500 hover:text-white transition-colors">✕</button>
       </div>
 
       {/* Display */}
-      <div className="p-6 bg-slate-50 text-right border-b border-slate-100">
-         <div className="h-6 text-sm font-medium text-slate-400 overflow-hidden whitespace-nowrap">{display || '0'}</div>
-         <div className="h-10 text-3xl font-black text-slate-800 overflow-hidden whitespace-nowrap">{result || (display ? '=' : '')}</div>
+      <div className={`p-6 text-right border-b ${styles.display}`}>
+         <div className={`h-6 text-sm font-medium overflow-hidden whitespace-nowrap ${styles.displayLabel}`}>{display || '0'}</div>
+         <div className="h-10 text-3xl font-black overflow-hidden whitespace-nowrap">{result || (display ? '=' : '')}</div>
       </div>
 
       {/* Pad */}
       <div className="p-4 grid grid-cols-4 gap-2">
          {/* Row 1 */}
-         <button onClick={clear} className="col-span-2 h-12 rounded-xl font-black text-rose-500 bg-rose-50 hover:bg-rose-100 border border-rose-100 uppercase text-xs tracking-widest">Clear</button>
-         <button onClick={backspace} className="h-12 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200">⌫</button>
-         <Btn l="÷" v="÷" c="bg-indigo-50 text-indigo-600" />
+         <button onClick={clear} className={`col-span-2 h-12 rounded-xl font-black uppercase text-xs tracking-widest border ${styles.btnDanger}`}>Clear</button>
+         <button onClick={backspace} className={`h-12 rounded-xl font-bold border ${styles.btn}`}>⌫</button>
+         <Btn l="÷" v="÷" />
 
          {/* Row 2 */}
-         <Btn l="(" v="(" c="text-slate-400 bg-white" />
-         <Btn l=")" v=")" c="text-slate-400 bg-white" />
-         <Btn l="%" v="%" c="text-slate-400 bg-white" />
-         <Btn l="×" v="×" c="bg-indigo-50 text-indigo-600" />
+         <Btn l="(" v="(" />
+         <Btn l=")" v=")" />
+         <Btn l="%" v="%" />
+         <Btn l="×" v="×" />
 
          {/* Row 3 */}
          <Btn l="7" v="7" />
          <Btn l="8" v="8" />
          <Btn l="9" v="9" />
-         <Btn l="-" v="-" c="bg-indigo-50 text-indigo-600" />
+         <Btn l="-" v="-" />
 
          {/* Row 4 */}
          <Btn l="4" v="4" />
          <Btn l="5" v="5" />
          <Btn l="6" v="6" />
-         <Btn l="+" v="+" c="bg-indigo-50 text-indigo-600" />
+         <Btn l="+" v="+" />
 
          {/* Row 5 */}
          <Btn l="1" v="1" />
          <Btn l="2" v="2" />
          <Btn l="3" v="3" />
-         <button onClick={() => { calculate(); }} className="row-span-2 h-full rounded-xl font-black text-white bg-indigo-600 shadow-indigo-500/30 shadow-lg active:translate-y-1">=</button>
+         <button 
+            onClick={() => calculate()} 
+            className={`row-span-2 h-full rounded-xl font-black text-xl shadow-lg active:translate-y-1 ${styles.btnPrimary}`}
+         >
+           =
+         </button>
 
          {/* Row 6 */}
          <Btn l="0" v="0" />
          <Btn l="." v="." />
          <Btn l="x²" v="²" />
-         {/* Hidden/Advanced toggles could go here later */}
       </div>
     </div>
   );
@@ -416,7 +485,7 @@ export const CalculatorWidget: React.FC<{ onClose: () => void }> = ({ onClose })
 
 // --- Interaction ---
 
-export const PullToRefresh: React.FC<{ onRefresh: () => Promise<void>, children: React.ReactNode, className?: string }> = ({ onRefresh, children, className = '' }) => {
+export const PullToRefresh = ({ onRefresh, children, className = '' }: { onRefresh: () => Promise<void>, children: React.ReactNode, className?: string }) => {
   const [startY, setStartY] = useState(0);
   const [pulling, setPulling] = useState(false);
   const [loading, setLoading] = useState(false);

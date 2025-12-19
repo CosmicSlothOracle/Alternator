@@ -78,6 +78,12 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'av_meister_dreieck', name: 'Meister des Dreiecks', type: 'avatar', cost: 4500, value: '🔺', icon: '🔺', description: 'Illuminati confirmed.', rarity: 'legendary' },
   { id: 'av_chosen', name: 'The Chosen One', type: 'avatar', cost: 10000, value: '👁️', icon: '👁️', description: 'Du siehst die Matrix. Du bist MathMaster.', rarity: 'legendary' },
   
+  // --- TASCHENRECHNER SKINS ---
+  { id: 'calc_default', name: 'Standard Glass', type: 'calculator', cost: 0, value: 'default', icon: '🧮', description: 'Clean, modern, funktional.', rarity: 'common' },
+  { id: 'calc_neon', name: 'Neon Hacker', type: 'calculator', cost: 300, value: 'neon', icon: '📟', description: 'Cyber-Optik für Profis.', rarity: 'rare' },
+  { id: 'calc_chaos', name: 'Chaos Mode', type: 'calculator', cost: 500, value: 'chaos', icon: '🤪', description: 'Alles durcheinander, aber funktioniert.', rarity: 'epic' },
+  { id: 'calc_soup', name: 'Alphabet Soup', type: 'calculator', cost: 800, value: 'soup', icon: '🍲', description: 'Mathe mal andersrum.', rarity: 'legendary' },
+
   // --- EFFEKTE ---
   { id: 'eff_rain', name: 'Matrix Rain', type: 'effect', cost: 250, value: 'rain', icon: '📟', description: 'Lass Zahlen auf dem Screen regnen.', rarity: 'rare' },
   { id: 'eff_storm', name: 'Electric Storm', type: 'effect', cost: 400, value: 'storm', icon: '🌩️', description: 'Deine Maus sprüht Funken und Blitze.', rarity: 'epic' },

@@ -63,11 +63,13 @@ export const TaskFactory = {
         this.createVolumeTask(4, seed)
       ];
       case 'u5': return [
-        this.createTransformTask(0, seed),
-        this.createTransformTask(1, seed),
-        this.createTransformTask(2, seed),
-        this.createTransformTask(3, seed),
-        this.createTransformTask(4, seed)
+        this.createVisualSimilarityTask(0, seed),
+        this.createVisualSimilarityTask(1, seed),
+        this.createScalingLogicTask(0, seed),
+        this.createScalingLogicTask(1, seed),
+        this.createScalingLogicTask(2, seed),
+        this.createScalingLogicTask(3, seed),
+        this.createTransformTask(0, seed)
       ];
       case 'u6': return [
         this.createContextTask(0, seed),
@@ -127,13 +129,13 @@ export const TaskFactory = {
           explanation: "V = a * a * a = 4 * 4 * 4 = 64."
         };
 
-      case 'u5': // Ähnlichkeit (Strahlensatz light)
+      case 'u5': // Ähnlichkeit / Maßstab (Classical Ratio)
         return {
-          id, type: 'choice',
-          question: "BOUNTY FRAGE: Ein Foto (10x15 cm) wird mit Faktor k = 3 vergrößert. Wie groß ist die neue Fläche im Vergleich zur alten?",
-          options: ["3-mal so groß", "6-mal so groß", "9-mal so groß", "27-mal so groß"],
-          correctAnswer: 2,
-          explanation: "Bei der Fläche wirkt der Streckfaktor im Quadrat: k² = 3² = 9."
+          id, type: 'input',
+          question: "BOUNTY FRAGE: Eine Landkarte hat den Maßstab 1:25.000. Du misst eine Strecke von 4 cm auf der Karte. Wie viele KILOMETER sind das in der Realität?",
+          correctAnswer: "1",
+          placeholder: "km",
+          explanation: "4 cm * 25.000 = 100.000 cm. 100.000 cm = 1.000 m = 1 km."
         };
 
       case 'u6': // Context / Pythagoras
@@ -228,6 +230,73 @@ export const TaskFactory = {
       ],
       correctAnswer: 'c',
       explanation: 'Ein stumpfer Winkel ist weiter geöffnet als ein rechter Winkel (größer als 90 Grad).'
+    };
+  },
+
+  createVisualSimilarityTask(index: number, seed: number): Task {
+    const id = `u5-vis-${index}-${seed}`;
+    if (index % 2 === 0) {
+      return {
+        id,
+        type: 'visualChoice',
+        question: "Welches Dreieck ist eine echte Vergrößerung (ähnlich) zum Referenz-Dreieck?",
+        // Ref: Base 40, Height 40. Scaled: Base 80, Height 80. Wrong: Base 80, Height 40 (stretched)
+        visualData: [
+          { id: 'ref', label: 'Referenz', path: 'M 20,80 L 60,80 L 20,40 Z', stroke: true },
+          { id: 'wrong', label: 'A', path: 'M 80,80 L 160,80 L 80,40 Z', stroke: true }, // Only stretched X
+          { id: 'correct', label: 'B', path: 'M 80,140 L 160,140 L 80,60 Z', stroke: true } // Scaled X and Y
+        ],
+        correctAnswer: 'correct',
+        explanation: 'Bei Ähnlichkeit müssen ALLE Seiten mit dem gleichen Faktor k gestreckt werden. Figur A wurde nur breiter gemacht, Figur B ist proportional vergrößert.'
+      };
+    } else {
+      return {
+        id,
+        type: 'visualChoice',
+        question: "Das Quadrat wurde mit Faktor k=0.5 verkleinert. Welches Bild stimmt?",
+        visualData: [
+          { id: 'ref', label: 'Start', path: 'M 20,20 H 100 V 100 H 20 Z', stroke: true },
+          { id: 'correct', label: 'A', path: 'M 120,60 H 160 V 100 H 120 Z', stroke: true }, // Half size
+          { id: 'wrong', label: 'B', path: 'M 120,20 H 140 V 100 H 120 Z', stroke: true }  // Thin rectangle
+        ],
+        correctAnswer: 'correct',
+        explanation: 'k=0.5 bedeutet, jede Seite ist nur noch halb so lang. Aus einem Quadrat wird wieder ein Quadrat, nur kleiner.'
+      };
+    }
+  },
+
+  createScalingLogicTask(index: number, seed: number): Task {
+    const id = `u5-logic-${index}-${seed}`;
+    const tasks = [
+      {
+        q: "Du verdoppelst die Seitenlänge eines Quadrats (k=2). Was passiert mit der Fläche?",
+        o: ["Sie verdoppelt sich (x2)", "Sie vervierfacht sich (x4)", "Sie bleibt gleich", "Sie wird 8-mal so groß"],
+        a: 1,
+        e: "Die Fläche wächst im Quadrat: k² = 2² = 4. Es passen also 4 kleine Quadrate in das große."
+      },
+      {
+        q: "Ein Würfel wird verdreifacht (k=3). Wie verändert sich das Volumen?",
+        o: ["x3", "x9", "x27", "x6"],
+        a: 2,
+        e: "Das Volumen wächst hoch drei: k³ = 3³ = 3 * 3 * 3 = 27."
+      },
+      {
+        q: "Ein Modellauto hat den Maßstab 1:10. Das echte Auto ist 4 Meter lang. Wie lang ist das Modell?",
+        o: ["4 cm", "40 cm", "10 cm", "1 Meter"],
+        a: 1,
+        e: "4 Meter = 400 cm. Geteilt durch 10 sind das 40 cm."
+      },
+      {
+        q: "Zwei Figuren sind ähnlich, wenn...",
+        o: ["sie die gleiche Farbe haben.", "sie gleich groß sind.", "ihre Winkel gleich sind und Seitenverhältnisse stimmen.", "sie beide Vierecke sind."],
+        a: 2,
+        e: "Ähnlichkeit bedeutet: Gleiche Form (Winkel), aber unterschiedliche Größe (skaliert)."
+      }
+    ];
+    const t = tasks[index % tasks.length];
+    return {
+      id, type: 'choice',
+      question: t.q, options: t.o, correctAnswer: t.a, explanation: t.e
     };
   },
 

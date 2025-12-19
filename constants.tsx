@@ -78,6 +78,12 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'av_meister_dreieck', name: 'Meister des Dreiecks', type: 'avatar', cost: 4500, value: '🔺', icon: '🔺', description: 'Illuminati confirmed.', rarity: 'legendary' },
   { id: 'av_chosen', name: 'The Chosen One', type: 'avatar', cost: 10000, value: '👁️', icon: '👁️', description: 'Du siehst die Matrix. Du bist MathMaster.', rarity: 'legendary' },
   
+  // --- TASCHENRECHNER SKINS ---
+  { id: 'calc_default', name: 'Standard Glass', type: 'calculator', cost: 0, value: 'default', icon: '🧮', description: 'Clean, modern, funktional.', rarity: 'common' },
+  { id: 'calc_neon', name: 'Neon Hacker', type: 'calculator', cost: 300, value: 'neon', icon: '📟', description: 'Cyber-Optik für Profis.', rarity: 'rare' },
+  { id: 'calc_chaos', name: 'Chaos Mode', type: 'calculator', cost: 500, value: 'chaos', icon: '🤪', description: 'Alles durcheinander, aber funktioniert.', rarity: 'epic' },
+  { id: 'calc_soup', name: 'Alphabet Soup', type: 'calculator', cost: 800, value: 'soup', icon: '🍲', description: 'Mathe mal andersrum.', rarity: 'legendary' },
+
   // --- EFFEKTE ---
   { id: 'eff_rain', name: 'Matrix Rain', type: 'effect', cost: 250, value: 'rain', icon: '📟', description: 'Lass Zahlen auf dem Screen regnen.', rarity: 'rare' },
   { id: 'eff_storm', name: 'Electric Storm', type: 'effect', cost: 400, value: 'storm', icon: '🌩️', description: 'Deine Maus sprüht Funken und Blitze.', rarity: 'epic' },
@@ -87,6 +93,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'eff_fire', name: 'Fire Blaze', type: 'effect', cost: 700, value: 'fire', icon: '🔥', description: 'Brennender Ehrgeiz visuell dargestellt.', rarity: 'legendary' },
   { id: 'eff_rainbow', name: 'Chroma Aura', type: 'effect', cost: 750, value: 'rainbow', icon: '🌈', description: 'Dein Avatar leuchtet in Regenbogenfarben.', rarity: 'epic' },
   { id: 'eff_galaxy', name: 'Galaxy Mode', type: 'effect', cost: 800, value: 'galaxy', icon: '🌌', description: 'Ein Sternenmeer für echte Entdecker.', rarity: 'legendary' },
+  { id: 'eff_singularity', name: 'Singularity Engine', type: 'effect', cost: 2000, value: 'singularity', icon: '🕳️', description: 'Krümme die Raumzeit. Gott-Modus für deine UI.', rarity: 'legendary' },
 
   // --- GUTSCHEINE ---
   { id: 'vc_10', name: '10€ Amazon Gutschein', type: 'voucher', cost: 1000, value: '10', icon: '💶', description: 'Ein echter Gutschein für deinen Fleiß.', rarity: 'legendary' },
@@ -170,7 +177,7 @@ export const GEOMETRY_DEFINITIONS: GeometryDefinition[] = [
       { term: 'Volumenfaktor', definition: 'Das Volumen ändert sich um k³. (Bsp: k=2 -> 8x Volumen).', visual: 'M 20,40 H 40 V 60 H 20 Z M 20,40 L 30,30 H 50 V 50 L 40,60' },
       { term: 'Maßstab', definition: '1:100 bedeutet 1cm auf der Karte sind 100cm (1m) in echt.', visual: 'M 20,50 H 180 M 20,45 V 55 M 180,45 V 55' }
     ],
-    visual: 'angles'
+    visual: 'angles' // Using generic visual, but terms have specific SVGs
   },
   {
     id: 'context',
@@ -231,11 +238,11 @@ export const LEARNING_UNITS: LearningUnit[] = [
     tasks: []
   },
   {
-    id: 'u5', group: 'A', category: 'Transformation', title: 'Ähnlichkeit',
-    description: 'Maßstäbe & zentrische Streckung.',
-    detailedInfo: 'Zoomen im echten Leben. Was passiert mit der Fläche eines Fotos, wenn du es doppelt so groß ausdruckst?',
+    id: 'u5', group: 'A', category: 'Transformation', title: 'Ähnlichkeit & Skalierung',
+    description: 'Vergrößern, Verkleinern & Maßstäbe.',
+    detailedInfo: 'Entdecke die Macht des Streckfaktors k. Wenn du eine Pizza doppelt so breit machst, hast du viermal so viel Belag! Lerne, warum das so ist.',
     examples: ['Länge * k', 'Fläche * k²'],
-    keywords: ['ähnlichkeit', 'streckung', 'maßstab', 'faktor'],
+    keywords: ['ähnlichkeit', 'streckung', 'maßstab', 'faktor', 'verhältnis'],
     difficulty: 'Mittel', coinsReward: 70, bounty: 300,
     definitionId: 'transform',
     tasks: []

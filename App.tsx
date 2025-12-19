@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LEARNING_UNITS, SHOP_ITEMS, PROGRESS_LEVELS, GEOMETRY_DEFINITIONS } from './constants';
 import { LearningUnit, User, Task, ShopItem, ChatMessage, CategoryGroup, BattleRequest, ToastMessage, ToastType } from './types';
@@ -6,7 +7,8 @@ import { getMatheHint } from './services/geminiService';
 import { TaskFactory } from './services/taskFactory';
 import { 
   Button, GlassCard, SectionHeading, CardTitle, Badge, DifficultyStars, 
-  ToastContainer, Skeleton, ModalOverlay, PullToRefresh, ProgressBar, CoinFlightAnimation 
+  ToastContainer, Skeleton, ModalOverlay, PullToRefresh, ProgressBar, CoinFlightAnimation,
+  CalculatorWidget
 } from './ui-components';
 
 // --- Theme Helpers ---
@@ -259,6 +261,107 @@ const ElectricStorm: React.FC = () => {
   );
 };
 
+const VoidProtocol: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const size = useContainerSize(containerRef);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = size.width || window.innerWidth;
+    canvas.height = size.height || window.innerHeight;
+
+    let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+    let lastMouse = { ...mouse };
+    let ripples: { x: number, y: number, r: number, alpha: number, lw: number }[] = [];
+    let time = 0;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+        mouse.x = e.touches[0].clientX;
+        mouse.y = e.touches[0].clientY;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove);
+
+    const draw = () => {
+      time += 0.005;
+      
+      // Clear
+      ctx.fillStyle = '#050505'; 
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Idle "Breathing" - Subtle expansion/contraction of void
+      const breath = Math.sin(time) * 0.5 + 0.5; // 0 to 1
+      const grad = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, 0,
+          canvas.width / 2, canvas.height / 2, canvas.width * (0.6 + breath * 0.1)
+      );
+      // Very subtle dark blue/purple tint in the black
+      grad.addColorStop(0, 'rgba(10, 10, 15, 1)'); 
+      grad.addColorStop(1, 'rgba(0, 0, 0, 1)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Gravitational Ripples on Movement
+      const dx = mouse.x - lastMouse.x;
+      const dy = mouse.y - lastMouse.y;
+      const speed = Math.sqrt(dx*dx + dy*dy);
+      
+      if (speed > 2) {
+          ripples.push({
+              x: mouse.x,
+              y: mouse.y,
+              r: 10,
+              alpha: Math.min(speed / 50, 0.15),
+              lw: 1
+          });
+      }
+      lastMouse = { ...mouse };
+
+      // Draw Ripples
+      for (let i = ripples.length - 1; i >= 0; i--) {
+          const r = ripples[i];
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+          // "Dark Light" - faint white/cyan
+          ctx.strokeStyle = `rgba(200, 220, 255, ${r.alpha})`;
+          ctx.lineWidth = r.lw;
+          ctx.stroke();
+          
+          r.r += 1.5; // Slow expansion
+          r.alpha *= 0.95; // Fade
+          
+          if (r.alpha < 0.005) ripples.splice(i, 1);
+      }
+
+      requestAnimationFrame(draw);
+    };
+
+    const anim = requestAnimationFrame(draw);
+    return () => {
+      cancelAnimationFrame(anim);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [size]);
+
+  return (
+    <div ref={containerRef} className="fixed inset-0 pointer-events-none z-[0]">
+      <canvas ref={canvasRef} />
+    </div>
+  );
+};
+
 const UnicornMagic: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -273,40 +376,223 @@ const UnicornMagic: React.FC = () => {
     canvas.width = size.width || window.innerWidth;
     canvas.height = size.height || window.innerHeight;
 
-    const unicorns: {x: number, y: number, speed: number, size: number}[] = [];
-    const maxUnicorns = 20;
+    let particles: {
+      x: number; y: number; vx: number; vy: number; 
+      size: number; hue: number; life: number; type: 'trail' | 'sparkle'
+    }[] = [];
+    
+    let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+    let lastMouse = { x: canvas.width / 2, y: canvas.height / 2 };
+    let tick = 0;
 
-    for (let i = 0; i < maxUnicorns; i++) {
-        unicorns.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            speed: 1 + Math.random() * 2,
-            size: 20 + Math.random() * 30
-        });
-    }
+    const handleMouseMove = (e: MouseEvent) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+        mouse.x = e.touches[0].clientX;
+        mouse.y = e.touches[0].clientY;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove);
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      unicorns.forEach(u => {
-          ctx.font = `${u.size}px serif`;
-          ctx.fillText("🦄", u.x, u.y);
-          
-          u.y -= u.speed;
-          // Wiggle
-          u.x += Math.sin(u.y * 0.05) * 0.5;
+      tick++;
 
-          if (u.y < -50) {
-              u.y = canvas.height + 50;
-              u.x = Math.random() * canvas.width;
-          }
-      });
+      const dx = mouse.x - lastMouse.x;
+      const dy = mouse.y - lastMouse.y;
+      const speed = Math.sqrt(dx*dx + dy*dy);
+      
+      // Interpolate hues for iridescent feel: Cyan -> Purple -> Pink
+      const baseHue = 180 + Math.sin(tick * 0.02) * 60 + (speed * 2);
+
+      // Create trail particles
+      if (speed > 2) {
+        const count = Math.min(Math.floor(speed / 3), 4);
+        for(let i=0; i<count; i++) {
+           particles.push({
+             x: mouse.x + (Math.random() - 0.5) * 20,
+             y: mouse.y + (Math.random() - 0.5) * 20,
+             vx: (Math.random() - 0.5) * 1, // Slow drift
+             vy: (Math.random() - 0.5) * 1,
+             size: Math.random() * 4 + 2,
+             hue: baseHue + (Math.random() * 40 - 20),
+             life: 1.0,
+             type: 'trail'
+           });
+        }
+      }
+
+      // Occasional Sparkles
+      if (Math.random() < 0.03) {
+         particles.push({
+             x: Math.random() * canvas.width,
+             y: canvas.height + 20, // Start from bottom or random? "emerge, drift upward"
+             vx: (Math.random() - 0.5) * 0.5,
+             vy: -Math.random() * 1 - 0.5, // Upward drift
+             size: Math.random() * 6 + 4,
+             hue: Math.random() * 360,
+             life: 1.0,
+             type: 'sparkle'
+         });
+         // Also random sparkles in the middle
+         if (Math.random() < 0.5) {
+             particles[particles.length-1].y = Math.random() * canvas.height;
+         }
+      }
+
+      lastMouse.x = mouse.x;
+      lastMouse.y = mouse.y;
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx + Math.sin(tick * 0.05 + p.y * 0.01) * 0.5; // Arcing drift
+        p.y += p.vy;
+        p.life -= 0.015;
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.beginPath();
+        // Crystal/Pastel style
+        const alpha = p.life * 0.8;
+        
+        if (p.type === 'sparkle') {
+            // Star/Diamond shape
+            const s = p.size * (0.5 + Math.sin(p.life * Math.PI) * 0.5);
+            ctx.fillStyle = `hsla(${p.hue}, 80%, 90%, ${alpha})`;
+            ctx.shadowColor = `hsla(${p.hue}, 90%, 80%, ${alpha})`;
+            ctx.shadowBlur = 15;
+            
+            ctx.moveTo(p.x, p.y - s);
+            ctx.lineTo(p.x + s*0.6, p.y);
+            ctx.lineTo(p.x, p.y + s);
+            ctx.lineTo(p.x - s*0.6, p.y);
+            ctx.fill();
+        } else {
+            // Soft Bokeh for trail
+            ctx.fillStyle = `hsla(${p.hue}, 70%, 85%, ${alpha})`;
+            ctx.shadowBlur = 0;
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+      }
 
       requestAnimationFrame(draw);
     };
 
     const anim = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(anim);
+    return () => {
+      cancelAnimationFrame(anim);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [size]);
+
+  return (
+    <div ref={containerRef} className="fixed inset-0 pointer-events-none z-[5] overflow-hidden">
+      {/* Subtle iridescent overlay for the "seen through crystal" feel */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 mix-blend-overlay" />
+      <canvas ref={canvasRef} />
+    </div>
+  );
+};
+
+const NeonDreams: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const size = useContainerSize(containerRef);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = size.width || window.innerWidth;
+    canvas.height = size.height || window.innerHeight;
+
+    let time = 0;
+    let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+    let targetMouse = { x: canvas.width / 2, y: canvas.height / 2 };
+    let interactionEnergy = 0;
+
+    const handleMouseMove = (e: MouseEvent) => {
+        targetMouse.x = e.clientX;
+        targetMouse.y = e.clientY;
+        interactionEnergy = Math.min(interactionEnergy + 5, 100);
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+        targetMouse.x = e.touches[0].clientX;
+        targetMouse.y = e.touches[0].clientY;
+        interactionEnergy = Math.min(interactionEnergy + 5, 100);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove);
+
+    const draw = () => {
+      // Smooth decay
+      interactionEnergy *= 0.95;
+      
+      // Smooth mouse follow
+      mouse.x += (targetMouse.x - mouse.x) * 0.1;
+      mouse.y += (targetMouse.y - mouse.y) * 0.1;
+
+      // Time moves faster with high energy
+      time += 0.002 + (interactionEnergy * 0.0005);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Background Gradient (Slow diagonal drift)
+      // We define points that orbit slowly
+      const x1 = (Math.sin(time * 0.5) * 0.5 + 0.5) * canvas.width;
+      const y1 = (Math.cos(time * 0.3) * 0.5 + 0.5) * canvas.height;
+      const x2 = (Math.sin(time * 0.4 + Math.PI) * 0.5 + 0.5) * canvas.width;
+      const y2 = (Math.cos(time * 0.6 + Math.PI) * 0.5 + 0.5) * canvas.height;
+
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      
+      // Vaporwave Colors: Cyan, Pink, Purple
+      // Shift hue slightly over time for "nostalgic" feel
+      gradient.addColorStop(0, `hsla(${180 + Math.sin(time)*20}, 70%, 60%, 0.15)`); // Cyan-ish
+      gradient.addColorStop(0.5, `hsla(${280 + Math.cos(time)*20}, 70%, 60%, 0.15)`); // Purple-ish
+      gradient.addColorStop(1, `hsla(${320 + Math.sin(time*0.8)*20}, 80%, 60%, 0.15)`); // Pink-ish
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Cursor Bloom / Halo
+      // Size breathes with energy and time
+      const radius = 150 + (Math.sin(time * 3) * 20) + (interactionEnergy * 2);
+      const bloomGrad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, radius);
+      
+      // Halo color shifts based on energy
+      bloomGrad.addColorStop(0, `hsla(${300 + interactionEnergy}, 100%, 80%, ${0.2 + interactionEnergy/300})`);
+      bloomGrad.addColorStop(1, 'hsla(300, 100%, 70%, 0)');
+
+      ctx.globalCompositeOperation = 'screen'; // Additive blending for that "Neon Glow" look
+      ctx.fillStyle = bloomGrad;
+      ctx.beginPath();
+      ctx.arc(mouse.x, mouse.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+
+      requestAnimationFrame(draw);
+    };
+
+    const anim = requestAnimationFrame(draw);
+    return () => {
+        cancelAnimationFrame(anim);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('touchmove', handleTouchMove);
+    };
   }, [size]);
 
   return (
@@ -315,14 +601,6 @@ const UnicornMagic: React.FC = () => {
     </div>
   );
 };
-
-const NeonDreams: React.FC = () => (
-  <div className="fixed inset-0 pointer-events-none z-[5] animate-pulse">
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-fuchsia-900/30 via-slate-900/0 to-cyan-900/30" />
-    <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-fuchsia-600/20 to-transparent" />
-    <div className="absolute top-0 right-0 w-full h-1/3 bg-gradient-to-b from-cyan-500/20 to-transparent" />
-  </div>
-);
 
 const GalaxyMode: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -338,39 +616,97 @@ const GalaxyMode: React.FC = () => {
     canvas.width = size.width || window.innerWidth;
     canvas.height = size.height || window.innerHeight;
 
-    const stars = Array.from({ length: 200 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      size: Math.random() * 2,
-      opacity: Math.random(),
-      blinkSpeed: 0.01 + Math.random() * 0.03
-    }));
+    // --- CONFIG ---
+    const STAR_COUNT = 300;
+    const NEBULA_COUNT = 3;
+
+    // --- TYPES ---
+    interface Star {
+      x: number;
+      y: number;
+      z: number; // 0.1 (far) to 1.0 (near)
+      size: number;
+      baseColor: string;
+      alpha: number;
+    }
+
+    interface Nebula {
+      x: number;
+      y: number;
+      radius: number;
+      color: string;
+      vx: number;
+      vy: number;
+    }
+
+    // --- INITIALIZATION ---
+    const stars: Star[] = [];
+    const colors = ['#ffffff', '#e0f2fe', '#fffbeb', '#c7d2fe']; // White, light blue, warm white, soft purple
+    
+    for (let i = 0; i < STAR_COUNT; i++) {
+        const z = Math.random();
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            z: 0.1 + z * 0.9, // Avoid z=0
+            size: Math.random() * 1.2 + (z * 1.0),
+            baseColor: colors[Math.floor(Math.random() * colors.length)],
+            alpha: 0.2 + Math.random() * 0.6
+        });
+    }
+
+    const nebulae: Nebula[] = [];
+    const nebulaColors = [
+        'rgba(30, 27, 75, 0.4)', // Dark Indigo
+        'rgba(49, 46, 129, 0.3)', // Indigo
+        'rgba(88, 28, 135, 0.2)'  // Purple
+    ];
+
+    for(let i=0; i<NEBULA_COUNT; i++) {
+        nebulae.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: 200 + Math.random() * 300,
+            color: nebulaColors[i % nebulaColors.length],
+            vx: (Math.random() - 0.5) * 0.2,
+            vy: (Math.random() - 0.5) * 0.2
+        });
+    }
 
     const draw = () => {
-      // Clear with almost opaque black for trails, or just solid black for deep space
-      ctx.fillStyle = '#000000'; 
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#020617'; // Slate 950
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw Nebula clouds (gradients)
-      const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width);
-      grad.addColorStop(0, 'rgba(76, 29, 149, 0.2)'); // Deep purple
-      grad.addColorStop(0.5, 'rgba(15, 23, 42, 0.5)'); // Dark slate
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0,0, canvas.width, canvas.height);
+        // Draw Nebulae
+        nebulae.forEach(n => {
+            n.x += n.vx;
+            n.y += n.vy;
+            if (n.x < -n.radius) n.x = canvas.width + n.radius;
+            if (n.x > canvas.width + n.radius) n.x = -n.radius;
+            if (n.y < -n.radius) n.y = canvas.height + n.radius;
+            if (n.y > canvas.height + n.radius) n.y = -n.radius;
 
-      stars.forEach(star => {
-        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
-        
-        star.opacity += star.blinkSpeed;
-        if (star.opacity > 1 || star.opacity < 0.2) star.blinkSpeed *= -1;
-      });
-      requestAnimationFrame(draw);
+            const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius);
+            g.addColorStop(0, n.color);
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Draw Stars
+        stars.forEach(s => {
+            ctx.fillStyle = s.baseColor;
+            ctx.globalAlpha = s.alpha * (0.5 + Math.sin(Date.now() * 0.001 * s.z) * 0.5);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        requestAnimationFrame(draw);
     };
-
+    
     const anim = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(anim);
   }, [size]);
@@ -583,20 +919,20 @@ const LeaderboardView: React.FC<{ currentUser: User; onChallenge: (u: User) => v
 };
 
 const ShopView: React.FC<{ user: User; onBuy: (item: ShopItem) => void; onPreview: (item: ShopItem) => void; previewEffect: string | null; isDarkMode: boolean }> = ({ user, onBuy, onPreview, previewEffect, isDarkMode }) => {
-  const [filter, setFilter] = useState<'all' | 'avatar' | 'effect' | 'voucher'>('all');
+  const [filter, setFilter] = useState<'all' | 'avatar' | 'effect' | 'voucher' | 'calculator'>('all');
 
   const filteredItems = SHOP_ITEMS.filter(i => filter === 'all' || i.type === filter);
 
   return (
     <div className="space-y-6">
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {(['all', 'avatar', 'effect', 'voucher'] as const).map(f => (
+        {(['all', 'avatar', 'effect', 'voucher', 'calculator'] as const).map(f => (
           <button 
             key={f} 
             onClick={() => setFilter(f)} 
             className={`px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider whitespace-nowrap transition-all ${filter === f ? (isDarkMode ? 'bg-white text-slate-900' : 'bg-slate-900 text-white') : (isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-white text-slate-500')}`}
           >
-            {f === 'all' ? 'Alles' : f === 'avatar' ? 'Avatare' : f === 'effect' ? 'Effekte' : 'Gutscheine'}
+            {f === 'all' ? 'Alles' : f === 'avatar' ? 'Avatare' : f === 'effect' ? 'Effekte' : f === 'calculator' ? 'Skins' : 'Gutscheine'}
           </button>
         ))}
       </div>
@@ -609,7 +945,6 @@ const ShopView: React.FC<{ user: User; onBuy: (item: ShopItem) => void; onPrevie
            return (
              <GlassCard key={item.id} className={`!p-4 flex flex-col items-center text-center gap-3 ${owned ? 'opacity-50 grayscale' : ''}`}>
                 <div className="text-4xl drop-shadow-md transition-transform hover:scale-110 duration-300">
-                    {/* NEW: Use item.icon if available, else item.value */}
                     {item.icon || item.value}
                 </div>
                 <div>
@@ -691,9 +1026,10 @@ const UnitModal: React.FC<{ unit: LearningUnit; config: any; onConfigChange: (c:
   );
 };
 
-const InventoryModal: React.FC<{ user: User; onClose: () => void; onToggleEffect: (id: string) => void; onAvatarChange: (val: string) => void }> = ({ user, onClose, onToggleEffect, onAvatarChange }) => {
+const InventoryModal: React.FC<{ user: User; onClose: () => void; onToggleEffect: (id: string) => void; onAvatarChange: (val: string) => void; onSkinChange: (val: string) => void }> = ({ user, onClose, onToggleEffect, onAvatarChange, onSkinChange }) => {
   const ownedAvatars = SHOP_ITEMS.filter(i => i.type === 'avatar' && (i.cost === 0 || user.unlockedItems.includes(i.id)));
   const ownedEffects = SHOP_ITEMS.filter(i => i.type === 'effect' && user.unlockedItems.includes(i.id));
+  const ownedSkins = SHOP_ITEMS.filter(i => i.type === 'calculator' && (i.cost === 0 || user.unlockedItems.includes(i.id)));
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -712,6 +1048,20 @@ const InventoryModal: React.FC<{ user: User; onClose: () => void; onToggleEffect
                   className={`aspect-square rounded-2xl text-2xl flex items-center justify-center border-2 transition-all ${user.avatar === av.value ? 'bg-indigo-50 border-indigo-500 scale-110 shadow-lg' : 'bg-white border-slate-100 hover:border-indigo-200'}`}
                 >
                    {av.icon || av.value}
+                </button>
+             ))}
+          </div>
+
+          <h3 className="font-bold text-slate-400 uppercase tracking-widest mb-4">Taschenrechner Skins</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+             {ownedSkins.map(sk => (
+                <button 
+                  key={sk.id} 
+                  onClick={() => onSkinChange(sk.value)}
+                  className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${user.calculatorSkin === sk.value ? 'bg-indigo-50 border-indigo-500 shadow-md' : 'bg-white border-slate-100 hover:border-indigo-200'}`}
+                >
+                   <span className="text-2xl">{sk.icon}</span>
+                   <span className="text-[10px] font-bold uppercase">{sk.name}</span>
                 </button>
              ))}
           </div>
@@ -1067,10 +1417,12 @@ export default function App() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [activeVoucher, setActiveVoucher] = useState<ShopItem | null>(null);
   const [previewEffect, setPreviewEffect] = useState<string | null>(null);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   const activeEffect = (name: string) => user?.activeEffects.includes(name) || previewEffect === name;
   const isDarkMode = activeEffect('dark');
   const hasRainbow = activeEffect('rainbow');
+  const hasSingularity = activeEffect('singularity');
 
   // Swipe logic state
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -1286,7 +1638,7 @@ export default function App() {
 
   return (
     <div 
-      className={`min-h-screen transition-all ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-[#fcfdfe] text-slate-900'} overflow-x-hidden`}
+      className={`min-h-screen transition-all ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-[#fcfdfe] text-slate-900'} overflow-x-hidden ${hasSingularity ? 'invert hue-rotate-180' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -1297,10 +1649,13 @@ export default function App() {
       {/* Visual Effects */}
       {activeEffect('rain') && <MatrixRain />}
       {activeEffect('storm') && <ElectricStorm />}
+      {activeEffect('dark') && <VoidProtocol />}
       {activeEffect('unicorn') && <UnicornMagic />}
       {activeEffect('neon') && <NeonDreams />}
       {activeEffect('galaxy') && <GalaxyMode />}
       {activeEffect('fire') && <FireBlaze />}
+
+      {isCalculatorOpen && <CalculatorWidget onClose={() => setIsCalculatorOpen(false)} skin={user.calculatorSkin} />}
 
       {!isTaskMode && !isBattleMode && (
         <>
@@ -1330,7 +1685,14 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+               <button 
+                 onClick={() => setIsCalculatorOpen(!isCalculatorOpen)} 
+                 className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all active:scale-95 ${isCalculatorOpen ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`} 
+                 title="Taschenrechner"
+               >
+                 🧮
+               </button>
                <div className={`px-4 py-1.5 bg-slate-900 text-white rounded-xl font-black text-xs transition-all shadow-lg ${isCoinPulsing ? 'scale-110 bg-amber-500' : ''}`}>🪙 {user.coins}</div>
                <div className="hidden xs:block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl font-black text-xs uppercase tracking-tighter shadow-sm">{user.xp} XP</div>
             </div>
@@ -1419,6 +1781,10 @@ export default function App() {
         await DataService.updateUser(updated);
       }} onAvatarChange={async (val) => {
         const updated = { ...user, avatar: val };
+        setUser(updated);
+        await DataService.updateUser(updated);
+      }} onSkinChange={async (val) => {
+        const updated = { ...user, calculatorSkin: val };
         setUser(updated);
         await DataService.updateUser(updated);
       }} />}
