@@ -6,7 +6,8 @@ import { getMatheHint } from './services/geminiService';
 import { TaskFactory } from './services/taskFactory';
 import { 
   Button, GlassCard, SectionHeading, CardTitle, Badge, DifficultyStars, 
-  ToastContainer, Skeleton, ModalOverlay, PullToRefresh, ProgressBar, CoinFlightAnimation 
+  ToastContainer, Skeleton, ModalOverlay, PullToRefresh, ProgressBar, CoinFlightAnimation,
+  CalculatorWidget
 } from './ui-components';
 
 // --- Theme Helpers ---
@@ -1952,6 +1953,7 @@ export default function App() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [activeVoucher, setActiveVoucher] = useState<ShopItem | null>(null);
   const [previewEffect, setPreviewEffect] = useState<string | null>(null);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   const activeEffect = (name: string) => user?.activeEffects.includes(name) || previewEffect === name;
   const isDarkMode = activeEffect('dark');
@@ -2189,6 +2191,9 @@ export default function App() {
       {activeEffect('rainbow') && <ChromaAura />}
       {activeEffect('singularity') && <SingularityEngine />}
 
+      {/* Global Calculator Widget */}
+      {isCalculatorOpen && <CalculatorWidget onClose={() => setIsCalculatorOpen(false)} />}
+
       {!isTaskMode && !isBattleMode && (
         <>
           <nav className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[100] backdrop-blur-2xl border p-2 rounded-full shadow-2xl flex items-center gap-1 ${isDarkMode ? 'bg-slate-900/80 border-slate-700' : 'bg-white/80 border-slate-200'}`}>
@@ -2217,7 +2222,13 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+               <button 
+                 onClick={() => setIsCalculatorOpen(!isCalculatorOpen)}
+                 className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isCalculatorOpen ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+               >
+                 🧮
+               </button>
                <div className={`px-4 py-1.5 bg-slate-900 text-white rounded-xl font-black text-xs transition-all shadow-lg ${isCoinPulsing ? 'scale-110 bg-amber-500' : ''}`}>🪙 {user.coins}</div>
                <div className="hidden xs:block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl font-black text-xs uppercase tracking-tighter shadow-sm">{user.xp} XP</div>
             </div>
